@@ -19,8 +19,12 @@ def process_frame(frame):
     :param frame: Input frame (numpy array).
     :return: Analysis results (JSON-like dict).
     """
-    # Example analysis logic
-    hr, hrv, eye_redness, drunk_level = 75, 40, 60, "Tipsy"  # Replace with actual processing
+    # Placeholder for processing logic
+    hr = 75  # Example: Replace with actual HR calculation
+    hrv = 40  # Example: Replace with actual HRV calculation
+    eye_redness = 60  # Example: Replace with actual eye redness extraction
+    drunk_level = "Tipsy"  # Example: Replace with classification logic
+
     return {
         "heart_rate": hr,
         "hrv": hrv,
