@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.signal import find_peaks
-from src.utils import normalize_signal
+
+from backend.src.utils import normalize_signal
 
 
 def compute_metrics(signal, fps):

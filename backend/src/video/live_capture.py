@@ -1,15 +1,32 @@
+import time
+
 import cv2
 import mediapipe as mp
 import numpy as np
-import time
-from src.data_processing.metrics import compute_metrics
-from src.data_processing.drunkness_classifier import classify_drunkness
-from src.data_processing.eye_redness import extract_eye_redness
-from src.utils import bandpass_filter
 
+from backend.src.data_processing.drunkness_classifier import classify_drunkness
+from backend.src.data_processing.eye_redness import extract_eye_redness
+from backend.src.data_processing.metrics import compute_metrics
+from backend.src.utils import bandpass_filter
 
 mp_face_mesh = mp.solutions.face_mesh
 
+
+def process_frame(frame):
+    """
+    Process a single frame for drunkenness-level estimation.
+
+    :param frame: Input frame (numpy array).
+    :return: Analysis results (JSON-like dict).
+    """
+    # Example analysis logic
+    hr, hrv, eye_redness, drunk_level = 75, 40, 60, "Tipsy"  # Replace with actual processing
+    return {
+        "heart_rate": hr,
+        "hrv": hrv,
+        "eye_redness": eye_redness,
+        "drunk_level": drunk_level,
+    }
 
 def capture_live_video_with_face_mesh(fps, time_window_sec, rppg_extraction_method):
     cap = cv2.VideoCapture(0)

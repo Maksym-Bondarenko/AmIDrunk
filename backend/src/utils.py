@@ -1,5 +1,5 @@
-from scipy.signal import butter, filtfilt
 import numpy as np
+from scipy.signal import butter, filtfilt
 
 
 def normalize_signal(signal):
