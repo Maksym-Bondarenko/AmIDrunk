@@ -1,11 +1,16 @@
-import cv2
-import numpy as np
-from fastapi import FastAPI, File, UploadFile
+import base64
+import logging
+
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from backend.src.video.live_capture import process_frame
+from backend.src.video.live_capture import handle_frame, process_frames
 
 app = FastAPI()
+
+frame_buffer = []  # Buffer to store frames for 10 seconds
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
 
 @app.get("/")
@@ -15,16 +20,45 @@ def health_check():
     """
     return {"status": "OK", "message": "Backend is running!"}
 
-@app.post("/process_frame/")
-async def process_frame_endpoint(frame: UploadFile = File(...)):
-    """
-    Receive a single frame from the frontend, process it, and return results.
-    """
-    contents = await frame.read()
-    nparr = np.frombuffer(contents, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    # Process the frame (modify `process_frame` in live_capture)
-    results = process_frame(img)
+@app.post("/process_batch/")
+async def process_batch(request: Request):
+    global frame_buffer
 
-    return JSONResponse(results)
+    try:
+        # Parse JSON data
+        data = await request.json()
+
+        # Log receipt of batch
+        logging.info(f"Received batch with {len(data['frames'])} frames.")
+
+        # Retrieve and decode frames
+        for frame in data['frames']:
+            y_plane = base64.b64decode(frame['y_plane'])
+            u_plane = base64.b64decode(frame['u_plane'])
+            v_plane = base64.b64decode(frame['v_plane'])
+            width = int(frame['width'])
+            height = int(frame['height'])
+
+            # Process the frame into RGB format
+            rgb_frame = handle_frame(width, height, y_plane, u_plane, v_plane)
+
+            if rgb_frame is not None:
+                frame_buffer.append(rgb_frame)
+
+        # Process if 300 frames (10 batches) are received
+        if len(frame_buffer) >= 300:
+            logging.info("Processing 300 frames for HR, HRV, and redness estimation...")
+            results = process_frames(frame_buffer)
+            frame_buffer.clear()  # Clear buffer after processing
+
+            # Log and return results
+            logging.info(f"Processed batch results: {results}")
+            return JSONResponse(content=results)
+
+        # If not enough frames, respond with a waiting message
+        return JSONResponse(content={"status": "Waiting for more frames"})
+
+    except Exception as e:
+        logging.error(f"Error processing batch: {e}")
+        return JSONResponse(content={"error": str(e)})
