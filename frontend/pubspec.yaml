@@ -9,6 +9,8 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.1.0
+  image: ^4.3.0
+  img: ^0.1.0
 
 dev_dependencies:
   flutter_test:
