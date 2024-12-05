@@ -11,13 +11,21 @@ dependencies:
   http: ^1.1.0
   image: ^4.3.0
   img: ^0.1.0
+  flutter_launcher_icons: ^0.14.1
+  audioplayers: ^6.1.0
+  shared_preferences: ^2.3.3
+  flame: ^1.22.0
+  google_fonts: ^6.2.1
+  nes_ui: ^0.20.0
+  provider: ^6.1.2
+  logging: ^1.3.0
+  go_router: ^14.6.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_launcher_icons: ^0.14.1
 
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icons/app_icon.png"
@@ -25,5 +33,13 @@ flutter_icons:
 flutter:
   uses-material-design: true
   assets:
+    - assets/icons/
+    - assets/images/
     - assets/icons/app_icon.png
     - assets/images/bottle.png
+    - lib/games/endless_runner/templates/endless_runner/assets/images/
+    - lib/games/endless_runner/templates/endless_runner/assets/images/dash/
+    - lib/games/endless_runner/templates/endless_runner/assets/images/enemies/
+    - lib/games/endless_runner/templates/endless_runner/assets/images/scenery/
+    - lib/games/endless_runner/templates/endless_runner/assets/music/
+    - lib/games/endless_runner/templates/endless_runner/assets/sfx/

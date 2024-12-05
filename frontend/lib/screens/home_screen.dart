@@ -2,6 +2,7 @@ import 'package:am_i_drank/screens/speen_the_bottle_screen.dart';
 import 'package:flutter/material.dart';
 import 'calculator_screen.dart';
 import 'camera_screen.dart';
+import 'endless_runner_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   @override
@@ -25,7 +26,12 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   _buildMenuButton("Busfahrer", Icons.bus_alert, () {}),
                   _buildMenuButton("King", Icons.videogame_asset, () {}),
-                  _buildMenuButton("Rulette", Icons.no_drinks, () {}),
+                  _buildMenuButton("Endless Runner", Icons.directions_run, () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => EndlessRunnerScreen()),
+                    );
+                  }),
                   _buildMenuButton("Spin the Bottle", Icons.sports_bar, () {
                     Navigator.push(
                       context,
