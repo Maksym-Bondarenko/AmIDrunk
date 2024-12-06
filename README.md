@@ -1,220 +1,147 @@
-# 🍹🥃🍸🍻🥂🍺 Drunkenness Estimation Backend
+# 🍸🥂🍻🍺 Drunkness Level Estimation Application
 
-This repository provides the backend for the **Drunkenness Estimation Application**, which processes biometric data to
-classify the user's level of drunkenness. The backend uses advanced signal processing, computer vision, and Mediapipe
-for real-time analysis.
-
----
-
-## 📋 Features
-
-- **Real-time Analysis**: Processes live data to compute HR, HRV, and eye redness.
-- **Batch Processing**: Accumulates frames and calculates metrics from 10-second intervals.
-- **Drunkenness Classification**: Classifies levels such as `Sober`, `Tipsy`, and `Extremely Drunk`.
-- **Signal Filtering**: Implements bandpass filtering for noise reduction in rPPG signals.
-- **Eye Redness Detection**: Estimates redness using Mediapipe Face Mesh.
-- **Modular Architecture**: Organized for easy integration and expansion.
+This project is a comprehensive platform designed to estimate an individual's level of intoxication through various
+mini-games, reaction-time tests, heart rate (HR), heart rate variability (HRV), and eye redness analysis using advanced
+technologies. It includes both a **frontend** built with Flutter and a **backend** using FastAPI.
 
 ---
 
-## 📁 Directory Structure
+## 🚀 Features
+
+- **Backend Functionality**:
+   - Drunkness estimation using heart rate, HRV, and eye redness metrics.
+   - Support for reaction-time-based sobriety tests.
+   - REST API for frontend integration.
+   - Modular and extendable architecture for new features.
+
+- **Frontend Functionality**:
+   - Interactive and user-friendly Flutter-based interface.
+   - Real-time mini-games like a bottle-spinning game and reaction tests.
+   - Integration with the backend for real-time results and data visualization.
+   - 8-bit styled game and application assets.
+
+- **Mini-Games**:
+   - **Reaction Time Test**: Calculate average reaction time for sobriety estimation.
+   - **Bottle-Spinning Game**: Fun game to randomly select a participant.
+   - **Endless Runner Game**: A challenging mini-game for entertainment.
+
+---
+
+## 📂 Project Structure
 
 ```plaintext
-backend/
-├── main.py                     # Entry point for the server.
-├── settings.py                 # Configuration and environment settings.
-├── logger.py                   # Logging setup for debugging and monitoring.
-├── services/
-│   ├── rppg_service.py         # Core rPPG signal processing logic.
-│   ├── metrics_service.py      # Calculation of HR, HRV, and other metrics.
-├── utils/
-│   ├── signal_processing.py    # Signal filtering and normalization utilities.
-│   ├── helpers.py              # General helper functions.
-├── data_processing/
-│   ├── eye_redness.py          # Extracts redness levels from eye regions.
-│   ├── drunkness_classifier.py # Classifies drunkenness using physiological data.
-├── tests/                      # Unit and integration tests.
-│   ├── test_rppg.py            # Tests for rPPG signal processing.
-│   ├── test_metrics.py         # Tests for metrics calculations.
+project-root/
+├── backend/
+│   ├── src/
+│   ├── tests/
+│   ├── requirements.txt
+│   └── README.md
+├── frontend/
+│   ├── lib/
+│   ├── assets/
+│   ├── android/
+│   ├── ios/
+│   ├── web/
+│   └── README.md
+└── README.md
 ```
 
-## 🛠️ How It Works
+---
 
-### Input Data
-
-The backend receives a batch of camera frames from the frontend every second. These batches are used to process and
-calculate physiological metrics.
-
-### Processing Pipeline
-
-1. **Frame Decoding**: Converts raw YUV frames to RGB format for further processing.
-2. **Face Mesh Detection**: Mediapipe detects and tracks facial landmarks.
-3. **Signal Extraction**: Extracts the rPPG signal from the forehead region.
-4. **Metrics Calculation**:
-    - Computes Heart Rate (HR) and Heart Rate Variability (HRV).
-    - Applies signal filtering and peak detection for accuracy.
-5. **Eye Redness Analysis**: Estimates redness levels from the eye regions using Mediapipe Face Mesh.
-6. **Classification**: Combines HR, HRV, and eye redness to determine the user's level of drunkenness.
-
-### Output
-
-The backend returns a JSON response containing the following:
-
-- Heart Rate (HR)
-- Heart Rate Variability (HRV)
-- Eye Redness
-- Drunkenness Level (e.g., Sober, Tipsy, Extremely Drunk)
-
-Example:
-
-```json
-{
-  "heart_rate": 78.3,
-  "hrv": 45.1,
-  "eye_redness": 72.5,
-  "drunk_level": "Tipsy"
-}
-```
-
-## 🚀 Getting Started
+## 🛠️ Getting Started
 
 ### Prerequisites
 
-- Python 3.8+
-- Required Libraries: Install dependencies using:
+1. Backend:
+   - Python 3.9+
+   - FastAPI and required Python libraries (requirements.txt).
+2. Frontend:
+- Flutter SDK (Latest stable version).
+- Android Studio / Xcode for emulators or a physical device.
 
-```bash
-pip install -r requirements.txt
-```
-
-### Running teh Server
+### Installation
 
 1. Clone the repository:
-
-```bash
-git clone https://github.com/your-repo/drunkenness-estimation.git
-cd drunkenness-estimation/backend
-```
-
-2. Start the background server:
-
-```bash
-python main.py
-```
-
-3. Verify the Server:
-    - Open a browser or use a tool like curl to check the health endpoint:
-    ```bash
-   http://127.0.0.1:8000
+   ```bash
+   git clone https://github.com/your-repo/drunkness-estimation.git
+   cd drunkness-estimation
    ```
-    - You should see a response like:
-   ```json
-   {
-      "status": "OK",
-      "message": "Backend is running!"
-   }
+2. Install dependencies:
+   - **Backend**:
+      ```bash
+      cd backend
+      python -m venv venv
+      source venv/bin/activate  # or venv\Scripts\activate on Windows
+      pip install -r requirements.txt
+      ```
+   - **Frontend**:
+      ```bash
+      cd frontend
+      flutter pub get
+      ```
+3. Set up assets:
+
+- Place required 8-bit styled assets in the frontend/assets/ directory.
+
+### Running the Application
+
+- **Backend**:
+   ```bash
+   uvicorn backend.src.main:app --reload 
+   ```
+- **Frontend**:
+   ```bash
+   flutter run
    ```
 
-The server runs at http://127.0.0.1:8000.
+4. Access the application on your connected device or emulator.
+
+---
 
 ## ⚙️ Configuration
 
-**settings.py**
+- **Backend**:
+   - Modify environment variables in backend/settings.py for API configurations.
+   - Add new metrics in backend/src/data_processing.
+- **Frontend**:
+   - Update API endpoints in frontend/lib/services/api_service.dart.
+   - Add new features/screens in frontend/lib/screens.
 
-Manage configurations like:
+---
 
-1. Frame buffer size: Number of frames per batch.
-2. Mediapipe settings: Control face mesh parameters.
-3. Logging level: Adjust verbosity for debugging.
+## 📋 Key Modules
 
-## ✨ Key Modules
+### Backend:
 
-1. **main.py**
-    - Try point of the backend using FastAPI.
-    - Exposes two endpoints:
-    - /: Health check endpoint.
-    - /process_batch/: Processes batches of frames.
+- ***rppg_service***: Processes frames to extract HR and HRV data.
+- ***eye_redness***: Analyzes redness in the eyes.
+- ***metrics***: Computes metrics such as HR and HRV.
+- ***API Endpoints***: Handles requests from the frontend.
 
-2. **rppg_service.py**
-    - Handles real-time rPPG signal processing.
-    - Accumulates frames and extracts signal from the forehead region.
+### Frontend:
 
-3. **metrics_service.py**
-    - Computes HR and HRV metrics from rPPG signals.
-    - Uses filtering and peak detection techniques.
+- ***API Service***: Manages HTTP requests to the backend.
+- ***Screens***: Implements mini-games and tests for user interactions.
+- ***Assets***: Contains all 8-bit styled images used in the application.
 
-4. **eye_redness.py**
-    - Exracts redness values from eye landmarks.
-    - Utilizes Mediapipe’s Face Mesh to isolate eye regions.
+---
 
-5. **drunkness_classifier.py**
-    - Classifies the user’s drunkenness level using:
-    - Heart rate (HR)
-    - Heart rate variability (HRV)
-    - Eye redness levels
+## 🛤️ Future Enhancements
 
-6. **signal_processing.py**
-    - Contains utilities for:
-    - Bandpass filtering
-    - Signal normalization
-    - Noise reduction
+- Add support for new sobriety tests (e.g., voice-based tests).
+- Introduce multiplayer modes for mini-games.
+- Extend backend to analyze more physiological data.
+- Include better data visualization in the frontend.
 
-### Frontend Integration
+---
 
-Ensure the frontend sends requests to the backend’s /process_batch/ endpoint to process frame batches.
-Modify the backend URL in the frontend if needed:
+## 🔄 Example Workflow
 
-```dart
-Uri.parse
-('http://<backend-ip>:8000/process_batch/
-'
-)
-```
+1. User starts the app on their device.
+2. Selects a test/game from the main menu.
+3. Completes the game/test.
+4. Backend processes data and sends results to the frontend.
+5. User views estimated sobriety level and feedback in the app.
 
-## 🧪 Testing
-
-**Running Unit Tests**
-
-Run the provided test cases to ensure everything works as expected:
-
-```bash
-pytest tests/
-```
-
-## 🛡️ Troubleshooting
-
-**Common Issues**
-
-1. Backend not starting:
-    - Ensure Python 3.8+ is installed.
-    - Check if all dependencies are installed with pip install -r requirements.txt.
-2. Frontend connection issues:
-    - Verify that the frontend is sending requests to the correct backend IP and port.
-3. Frame decoding errors:
-    - Ensure that frames are properly encoded in the YUV format.
-
-## 🎯 Future Enhancements
-
-- **Eye Movement Analysis**: Integrate real-time eye tracking for more precise drunkenness estimation.
-- **Extended Metrics**: Add additional physiological markers like respiratory rate.
-- **Cloud Deployment**: Deploy on AWS/GCP for better scalability.
-
-## 📝 Example Workflow
-
-1. The **frontend** sends a batch of frames to /process_batch/.
-2. The **backend**:
-    - decodes frames.
-    - Extracts rPPG signals and eye redness.
-    - Computes HR and HRV.
-    - Classifies drunkenness.
-    - Returns metrics and drunkenness level to the frontend.
-3. Returns metrics and drunkenness level to the frontend.
-
-```json
-{
-  "heart_rate": 120.0,
-  "hrv": 60.0,
-  "eye_redness": 80.0,
-  "drunk_level": "Extremely Drunk"
-}
-```
+---
+*For more details, check out the individual README.md files in the backend/ and frontend/ directories.*
