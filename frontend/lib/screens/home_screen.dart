@@ -1,3 +1,4 @@
+import 'package:am_i_drank/screens/reaction_time_screen.dart';
 import 'package:am_i_drank/screens/speen_the_bottle_screen.dart';
 import 'package:flutter/material.dart';
 import 'calculator_screen.dart';
@@ -25,7 +26,12 @@ class HomeScreen extends StatelessWidget {
                 mainAxisSpacing: 16.0,
                 children: [
                   _buildMenuButton("Busfahrer", Icons.bus_alert, () {}),
-                  _buildMenuButton("King", Icons.videogame_asset, () {}),
+                  _buildMenuButton("Reaction Time Test", Icons.timer, () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ReactionTimeScreen()),
+                    );
+                  }),
                   _buildMenuButton("Endless Runner", Icons.directions_run, () {
                     Navigator.push(
                       context,

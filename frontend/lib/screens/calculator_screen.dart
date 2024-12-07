@@ -24,26 +24,38 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       double heightInMeters = height! / 100;
       bmi = weight! / (heightInMeters * heightInMeters);
 
-      // Calculate BAC using Widmark formula
-      double bodyWater = (sex == "Male") ? 0.58 : 0.49; // Male has more body water
-      double alcoholInGrams = alcoholVolume! * (alcoholPercentage! / 100) * 0.789; // Alcohol density = 0.789 g/ml
-      bac = alcoholInGrams / (bodyWater * weight!); // BAC as a percentage
+      // Calculate total body water using the Watson formula
+      double bodyWater;
+      if (sex == "Male") {
+        bodyWater = 2.447 - 0.09516 * age! + 0.1074 * height! + 0.3362 * weight!;
+      } else {
+        bodyWater = -2.097 + 0.1069 * height! + 0.2466 * weight!;
+      }
 
-      // Convert BAC to promille
+      // Calculate grams of alcohol in the body
+      double alcoholInGrams =
+          alcoholVolume! * (alcoholPercentage! / 100) * 0.789; // Alcohol density = 0.789 g/ml
+
+      // Calculate BAC using the Widmark formula (as a percentage)
+      bac = alcoholInGrams / (bodyWater * 1000); // BAC = g/L of blood
+
+      // Convert BAC to promille for display purposes
       double promille = bac! * 10;
 
-      // Calculate times
-      timeToZero = bac! / 0.017; // Time in hours to reach 0 BAC
-      timeToTarget = (bac! - (targetPromille! / 10)) / 0.017; // Time to reach target promille
+      // Time to reach 0 BAC (0.017% per hour burn rate)
+      timeToZero = bac! / 0.017;
+
+      // Time to reach target promille
+      timeToTarget = (bac! - (targetPromille! / 10)) / 0.017;
       if (timeToTarget! < 0) timeToTarget = 0; // If already below target
 
-      // Format times
+      // Format times into readable format
       timeToZeroFormatted = _formatTime(timeToZero!);
       timeToTargetFormatted = _formatTime(timeToTarget!);
 
+      // Update state with calculated values
       setState(() {
-        // Add promille to the display results
-        bac = promille;
+        bac = promille; // Update BAC to promille for display
       });
     }
   }
@@ -56,9 +68,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     int mins = remainingMinutes % 60;
 
     if (days > 0) {
-      return "$days day${days > 1 ? 's' : ''} $hrs hour${hrs > 1 ? 's' : ''} $mins minute${mins > 1 ? 's' : ''}";
+      return "$days day${days > 1 ? 's' : ''}, $hrs hour${hrs > 1 ? 's' : ''}, $mins minute${mins > 1 ? 's' : ''}";
+    } else if (hrs > 0) {
+      return "$hrs hour${hrs > 1 ? 's' : ''}, $mins minute${mins > 1 ? 's' : ''}";
     } else {
-      return "$hrs hour${hrs > 1 ? 's' : ''} $mins minute${mins > 1 ? 's' : ''}";
+      return "$mins minute${mins > 1 ? 's' : ''}";
     }
   }
 

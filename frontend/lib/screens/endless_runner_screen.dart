@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 
-import '../games/endless_runner/templates/endless_runner/lib/main.dart';
+import '../games/endless_runner/beer_runner/main.dart';
+
 
 class EndlessRunnerScreen extends StatelessWidget {
   @override
