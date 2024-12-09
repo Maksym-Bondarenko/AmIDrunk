@@ -1,3 +1,4 @@
+import logging
 import time
 
 import cv2
@@ -9,116 +10,118 @@ from backend.src.data_processing.eye_redness import extract_eye_redness
 from backend.src.data_processing.metrics import compute_metrics
 from backend.src.utils import bandpass_filter
 
+# Mediapipe initialization
 mp_face_mesh = mp.solutions.face_mesh
 
+# Buffers for rPPG signal and timestamps
+rppg_signal_buffer = []
+timestamps_buffer = []
+fps = 30  # Frames per second
 
-def process_frame(frame):
+
+def handle_frame(width, height, y_plane, u_plane, v_plane):
     """
-    Process a single frame for drunkenness-level estimation.
+    Decodes YUV planes into an RGB image and returns it.
 
-    :param frame: Input frame (numpy array).
-    :return: Analysis results (JSON-like dict).
+    :param width: Frame width.
+    :param height: Frame height.
+    :param y_plane: Y-plane data.
+    :param u_plane: U-plane data.
+    :param v_plane: V-plane data.
+    :return: Decoded RGB frame (numpy array).
     """
-    # Placeholder for processing logic
-    hr = 75  # Example: Replace with actual HR calculation
-    hrv = 40  # Example: Replace with actual HRV calculation
-    eye_redness = 60  # Example: Replace with actual eye redness extraction
-    drunk_level = "Tipsy"  # Example: Replace with classification logic
+    try:
+        # Decode YUV planes
+        y = np.frombuffer(y_plane, dtype=np.uint8).reshape((height, width))
+        u = np.frombuffer(u_plane, dtype=np.uint8).reshape((height // 2, width // 2))
+        v = np.frombuffer(v_plane, dtype=np.uint8).reshape((height // 2, width // 2))
 
-    return {
-        "heart_rate": hr,
-        "hrv": hrv,
-        "eye_redness": eye_redness,
-        "drunk_level": drunk_level,
-    }
+        # Resize U and V planes to match Y plane size
+        u_resized = cv2.resize(u, (width, height), interpolation=cv2.INTER_LINEAR)
+        v_resized = cv2.resize(v, (width, height), interpolation=cv2.INTER_LINEAR)
 
-def capture_live_video_with_face_mesh(fps, time_window_sec, rppg_extraction_method):
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("Error: Unable to access the webcam.")
-        return [], [], [], [], []
+        # Combine YUV planes into a single image
+        yuv_image = np.dstack((y, u_resized, v_resized))
 
-    print("Press 'q' to stop the video capture.")
-    rppg_signal = []
-    timestamps = []
-    hr_values = []
-    hrv_values = []
-    eye_redness_values = []
-    start_time = time.time()
+        # Convert YUV to RGB
+        rgb_image = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2RGB)
+        return rgb_image
+    except Exception as e:
+        print(f"[ERROR] Failed to decode YUV planes: {e}")
+        return None
 
-    last_hr_update_time = start_time
-    stop_video = False  # Flag to break nested loops
 
-    with mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True) as face_mesh:
-        while not stop_video:
-            ret, frame = cap.read()
-            if not ret:
-                break
+def process_frames(frames):
+    """
+    Process accumulated frames and return HR, HRV, and eye redness.
+    """
+    try:
+        global rppg_signal_buffer, timestamps_buffer
 
-            # Check for 'q' key press to exit
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                stop_video = True
-                break
-
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            results = face_mesh.process(rgb_frame)
-
-            if results.multi_face_landmarks:
-                for face_landmarks in results.multi_face_landmarks:
+        # Initialize Mediapipe Face Mesh
+        with mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True) as face_mesh:
+            for frame in frames:
+                # Process frame
+                results = face_mesh.process(frame)
+                if results.multi_face_landmarks:
+                    face_landmarks = results.multi_face_landmarks[0]
                     ih, iw, _ = frame.shape
 
-                    # Define eye landmark indices
-                    left_eye_indices = [33, 133, 160, 158, 153, 144, 145, 362]
-                    right_eye_indices = [362, 263, 386, 385, 380, 373, 374, 382]
-
-                    # Extract redness from eyes
-                    eye_redness = extract_eye_redness(frame, face_landmarks, left_eye_indices, right_eye_indices)
-
-                    # Extract rPPG signal
-                    x, y, w, h = cv2.boundingRect(
-                        np.array(
-                            [[int(landmark.x * iw), int(landmark.y * ih)] for landmark in face_landmarks.landmark],
-                            dtype=np.int32
-                        )
+                    # Define forehead region for rPPG extraction
+                    forehead_indices = [10, 338, 297, 332, 284]
+                    forehead_points = np.array(
+                        [[int(face_landmarks.landmark[idx].x * iw), int(face_landmarks.landmark[idx].y * ih)]
+                         for idx in forehead_indices]
                     )
-                    padding = 30
-                    x1 = max(x - padding, 0)
-                    y1 = max(y - padding, 0)
-                    x2 = min(x + w + padding, iw)
-                    y2 = min(y + h + padding, ih)
+                    x, y, w, h = cv2.boundingRect(forehead_points)
 
-                    cropped_face = frame[y1:y2, x1:x2]
-                    cropped_face_resized = cv2.resize(cropped_face, (500, 500))
+                    # Crop forehead region
+                    forehead_region = frame[y:y + h, x:x + w]
 
-                    raw_signal = rppg_extraction_method(cropped_face_resized)
-                    rppg_signal.append(raw_signal)
-                    timestamps.append(time.time() - start_time)
+                    # Compute mean RGB values from the forehead region
+                    if forehead_region.size > 0:
+                        mean_rgb = np.mean(forehead_region.reshape(-1, 3), axis=0)
 
-                    # Apply bandpass filter and update HR/HRV
-                    if len(rppg_signal) >= fps * time_window_sec:
-                        filtered_signal = bandpass_filter(
-                            rppg_signal[-fps * time_window_sec:],
-                            low_cutoff=0.7,
-                            high_cutoff=3.0,
-                            fps=fps
-                        )
-                        current_time = time.time()
-                        if current_time - last_hr_update_time >= time_window_sec:
-                            hr, hrv, _ = compute_metrics(filtered_signal, fps)
-                            if hr and hrv:
-                                hr_values.append(hr)
-                                hrv_values.append(hrv)
-                                eye_redness_values.append(eye_redness)
+                        # Extract rPPG signal using CHROME method
+                        raw_signal = mean_rgb[1] - (mean_rgb[0] + mean_rgb[2]) / 2
+                        rppg_signal_buffer.append(raw_signal)
+                        timestamps_buffer.append(time.time())
 
-                                # Classify drunkenness level
-                                drunk_level = classify_drunkness(hr, hrv, eye_redness)
-                                print(f"[{timestamps[-1]:.1f}s] HR: {hr:.2f} BPM | HRV: {hrv:.2f} ms | Redness: {eye_redness:.2f} | Level: {drunk_level}")
+        # Retain only the last 5 seconds of data
+        if len(timestamps_buffer) > fps * 5:
+            rppg_signal_buffer = rppg_signal_buffer[-fps * 5:]
+            timestamps_buffer = timestamps_buffer[-fps * 5:]
 
-                            last_hr_update_time = current_time
+        # Process rPPG signal if enough data is available
+        if len(rppg_signal_buffer) >= fps * 5:
+            # Apply a bandpass filter to the rPPG signal
+            filtered_signal = bandpass_filter(
+                rppg_signal_buffer,
+                low_cutoff=0.7,
+                high_cutoff=3.0,
+                fps=fps
+            )
 
-                    # Show the cropped face on the live video feed
-                    cv2.imshow("Live Video (Zoomed Facial Region)", cropped_face_resized)
+            # Calculate HR and HRV
+            hr, hrv, _ = compute_metrics(filtered_signal, fps)
 
-    cap.release()
-    cv2.destroyAllWindows()
-    return rppg_signal, timestamps, hr_values, hrv_values, eye_redness_values
+            # Calculate eye redness from the last frame
+            last_frame = frames[-1]
+            left_eye_indices = [33, 133, 160, 158, 153, 144, 145, 362]
+            right_eye_indices = [362, 263, 386, 385, 380, 373, 374, 382]
+            eye_redness = extract_eye_redness(last_frame, face_landmarks, left_eye_indices, right_eye_indices)
+
+            # Classify drunkenness
+            drunk_level = classify_drunkness(hr, hrv, eye_redness)
+
+            return {
+                "heart_rate": hr,
+                "hrv": hrv,
+                "eye_redness": eye_redness,
+                "drunk_level": drunk_level,
+            }
+
+        return {"status": "Not enough data for processing"}
+    except Exception as e:
+        logging.error(f"Error processing frames: {e}")
+        return {"error": str(e)}
