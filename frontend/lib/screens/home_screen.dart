@@ -1,84 +1,84 @@
-import 'dart:convert';
-
-import 'package:camera/camera.dart';
+import 'package:am_i_drank/screens/reaction_time_screen.dart';
+import 'package:am_i_drank/screens/speen_the_bottle_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'calculator_screen.dart';
+import 'camera_screen.dart';
+import 'endless_runner_screen.dart';
 
-class HomeScreen extends StatefulWidget {
-  @override
-  _HomeScreenState createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  CameraController? _cameraController;
-  bool _isProcessing = false;
-  String _drunkLevel = "Unknown";
-  int _heartRate = 0;
-  int _hrv = 0;
-  double _eyeRedness = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeCamera();
-  }
-
-  Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    _cameraController = CameraController(cameras[0], ResolutionPreset.medium);
-    await _cameraController!.initialize();
-    _startFrameCapture();
-  }
-
-  void _startFrameCapture() {
-    _cameraController?.startImageStream((CameraImage image) async {
-      if (_isProcessing) return;
-
-      _isProcessing = true;
-
-      try {
-        // Convert the image to bytes and send to backend
-        final results = await _sendFrameToBackend(image);
-        setState(() {
-          _heartRate = results['heart_rate'];
-          _hrv = results['hrv'];
-          _eyeRedness = results['eye_redness'];
-          _drunkLevel = results['drunk_level'];
-        });
-      } catch (e) {
-        print("Error processing frame: $e");
-      } finally {
-        _isProcessing = false;
-      }
-    });
-  }
-
-  Future<Map<String, dynamic>> _sendFrameToBackend(CameraImage image) async {
-    // Convert CameraImage to bytes
-    final bytes = image.planes[0].bytes;
-
-    // Send frame to backend
-    final request = http.MultipartRequest('POST', Uri.parse('http://127.0.0.1:8000/process_frame/'));
-    request.files.add(http.MultipartFile.fromBytes('frame', bytes, filename: 'frame.jpg'));
-
-    final response = await request.send();
-    final responseData = await response.stream.bytesToString();
-    return jsonDecode(responseData);
-  }
-
+class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Drunkenness Level Estimator")),
-      body: Column(
+      appBar: AppBar(
+        title: Text("Drunkenness Estimator"),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            // Two columns of buttons
+            Expanded(
+              child: GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16.0,
+                mainAxisSpacing: 16.0,
+                children: [
+                  _buildMenuButton("Busfahrer", Icons.bus_alert, () {}),
+                  _buildMenuButton("Reaction Time Test", Icons.timer, () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ReactionTimeScreen()),
+                    );
+                  }),
+                  _buildMenuButton("Endless Runner", Icons.directions_run, () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => EndlessRunnerScreen()),
+                    );
+                  }),
+                  _buildMenuButton("Spin the Bottle", Icons.sports_bar, () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => SpinTheBottleScreen()),
+                    );
+                  }),
+                  _buildMenuButton("Alco-Calculator", Icons.calculate, () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CalculatorScreen()),
+                    );
+                  }),
+                  _buildMenuButton("Start Alco-Camera", Icons.camera, () {
+                    // Navigate to the Camera Screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CameraScreen()),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuButton(String title, IconData icon, VoidCallback onPressed) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        padding: EdgeInsets.all(16.0),
+        backgroundColor: Colors.blue,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (_cameraController != null && _cameraController!.value.isInitialized)
-            CameraPreview(_cameraController!),
-          SizedBox(height: 20),
-          Text("Drunkenness Level: $_drunkLevel"),
-          Text("Heart Rate: $_heartRate BPM"),
-          Text("HRV: $_hrv ms"),
-          Text("Eye Redness: $_eyeRedness"),
+          Icon(icon, size: 40, color: Colors.white),
+          SizedBox(height: 10),
+          Text(title, style: TextStyle(color: Colors.white)),
         ],
       ),
     );
