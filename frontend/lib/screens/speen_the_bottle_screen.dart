@@ -6,7 +6,8 @@ class SpinTheBottleScreen extends StatefulWidget {
   _SpinTheBottleScreenState createState() => _SpinTheBottleScreenState();
 }
 
-class _SpinTheBottleScreenState extends State<SpinTheBottleScreen> with SingleTickerProviderStateMixin {
+class _SpinTheBottleScreenState extends State<SpinTheBottleScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _userController = TextEditingController();
   List<String> users = [];
   late AnimationController _controller;
@@ -31,7 +32,7 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen> with SingleTi
   void _addUser() {
     if (_userController.text.isNotEmpty && users.length < 10) {
       setState(() {
-        users.add(_userController.text);
+        users.add(_userController.text.trim());
       });
       _userController.clear();
     }
@@ -101,64 +102,148 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen> with SingleTi
     double screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      appBar: AppBar(title: Text("Spin the Bottle")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Add Users Section
-            Row(
+      appBar: AppBar(
+        title: Text("Spin the Bottle"),
+        backgroundColor: Colors.deepPurple,
+      ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(16.0),
+        child: Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: Colors.deepPurple[50],
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _userController,
-                    decoration: InputDecoration(
-                      labelText: "Enter Name",
-                      border: OutlineInputBorder(),
+                Text(
+                  "Spin the Bottle Game",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 24),
+                // Add Users Section
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _userController,
+                        decoration: InputDecoration(
+                          labelText: "Enter Name",
+                          hintText: "e.g., Alice",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: _addUser,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        padding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Icon(Icons.add, color: Colors.white),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16),
+                // Display Users List
+                if (users.isNotEmpty)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: users
+                          .map(
+                            (user) => Chip(
+                          label: Text(user),
+                          backgroundColor: Colors.deepPurple[100],
+                          deleteIcon: Icon(Icons.close, color: Colors.deepPurple),
+                          onDeleted: () {
+                            setState(() {
+                              users.remove(user);
+                            });
+                          },
+                        ),
+                      )
+                          .toList(),
                     ),
                   ),
+                SizedBox(height: 24),
+                // Spin the Bottle Section
+                Column(
+                  children: [
+                    Text(
+                      "Ready to spin?",
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.deepPurple[700],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Bottle Image
+                        Transform.rotate(
+                          angle: _currentRotation,
+                          child: Image.asset(
+                            'assets/images/bottle.png', // Ensure this image exists in your assets
+                            width: screenWidth / 2,
+                            height: screenWidth / 2,
+                          ),
+                        ),
+                        // Pointer
+                        Positioned(
+                          top: 0,
+                          child: Icon(
+                            Icons.arrow_drop_down,
+                            color: Colors.redAccent,
+                            size: 40,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: users.isNotEmpty ? _spinBottle : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                        users.isNotEmpty ? Colors.deepPurple : Colors.grey,
+                        padding:
+                        EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        "Spin the Bottle",
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 8),
-                ElevatedButton(onPressed: _addUser, child: Text("Add")),
               ],
             ),
-            SizedBox(height: 16),
-            // Display Users List
-            if (users.isNotEmpty)
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: users
-                    .map((user) => Chip(
-                  label: Text(user),
-                  deleteIcon: Icon(Icons.close),
-                  onDeleted: () {
-                    setState(() {
-                      users.remove(user);
-                    });
-                  },
-                ))
-                    .toList(),
-              ),
-            SizedBox(height: 20),
-            // Spin the Bottle Section
-            Expanded(
-              child: Center(
-                child: Transform.rotate(
-                  angle: _currentRotation,
-                  child: Image.asset(
-                    'assets/images/bottle.png', // Replace with your bottle image
-                    width: screenWidth / 3,
-                    height: screenWidth / 3,
-                  ),
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: _spinBottle,
-              child: Text("Spin the Bottle"),
-            ),
-          ],
+          ),
         ),
       ),
     );

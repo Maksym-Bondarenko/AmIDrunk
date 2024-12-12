@@ -6,9 +6,6 @@ import 'package:camera/camera.dart';
 class ApiService {
   static Future<Map<String, dynamic>> sendFrameBatchToBackend(List<CameraImage> batch) async {
     try {
-      final int width = batch[0].width;
-      final int height = batch[0].height;
-
       List<Map<String, dynamic>> serializedFrames = batch.map((image) {
         return {
           'width': image.width,
@@ -22,7 +19,8 @@ class ApiService {
       }).toList();
 
       final response = await http.post(
-        Uri.parse('http://192.168.1.223:8000/process_batch/'),
+//       Uri.parse('http://192.168.1.223:8000/process_batch/'),
+        Uri.parse('http://10.5.3.79:8000/process_batch/'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({'frames': serializedFrames}),
       );
