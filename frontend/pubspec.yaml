@@ -25,6 +25,7 @@ dependencies:
   logging: ^1.3.0
   go_router: ^14.6.2
   flame_audio: ^2.10.6
+  intl: ^0.20.1
 
 dev_dependencies:
   flutter_test:
