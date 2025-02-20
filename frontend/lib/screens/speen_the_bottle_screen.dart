@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SpinTheBottleScreen extends StatefulWidget {
   @override
@@ -12,15 +13,13 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen>
   List<String> users = [];
   late AnimationController _controller;
   late Animation<double> _rotationAnimation;
-  double _currentRotation = 0.0; // Tracks the current rotation angle
+  double _currentRotation = 0.0;
 
   @override
   void initState() {
     super.initState();
-
-    // Initialize the animation controller
     _controller = AnimationController(
-      duration: Duration(seconds: 5), // Animation duration
+      duration: Duration(seconds: 5),
       vsync: this,
     )..addListener(() {
       setState(() {
@@ -47,7 +46,7 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen>
     }
 
     final random = Random();
-    final targetRotation = (5 + random.nextDouble() * 5) * 2 * pi; // At least 5 full rotations
+    final targetRotation = (5 + random.nextDouble() * 5) * 2 * pi;
 
     _rotationAnimation = Tween<double>(
       begin: _currentRotation,
@@ -58,14 +57,10 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen>
     ));
 
     _controller.forward(from: 0.0).then((_) {
-      // Normalize the final rotation angle to the range [0, 2π]
       setState(() {
         _currentRotation = _currentRotation % (2 * pi);
       });
-
-      // Select a random user
       String winner = users[random.nextInt(users.length)];
-      // Show the winner in a dialog
       _showWinnerDialog(winner);
     });
   }
@@ -75,7 +70,7 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen>
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text("Winner!"),
+          title: Text("Winner!", style: GoogleFonts.pacifico()),
           content: Text("The bottle points to: $winner"),
           actions: [
             TextButton(
@@ -103,148 +98,90 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Spin the Bottle"),
-        backgroundColor: Colors.deepPurple,
+        title: Text("Spin the Bottle", style: GoogleFonts.pacifico()),
+        backgroundColor: Color(0xFF3A3A3A),
+        centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
-        child: Card(
-          elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          color: Colors.deepPurple[50],
-          child: Padding(
-            padding: EdgeInsets.all(24.0),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: EdgeInsets.all(16.0),
             child: Column(
               children: [
-                Text(
-                  "Spin the Bottle Game",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 24),
-                // Add Users Section
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _userController,
-                        decoration: InputDecoration(
-                          labelText: "Enter Name",
-                          hintText: "e.g., Alice",
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
+                Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 4,
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _userController,
+                          decoration: InputDecoration(
+                            labelText: "Enter Name",
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            filled: true,
+                            fillColor: Colors.white,
                           ),
-                          filled: true,
-                          fillColor: Colors.white,
                         ),
+                        SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _addUser,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text("Add Player", style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                if (users.isNotEmpty)
+                  Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 4,
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: users.map((user) => Chip(label: Text(user))).toList(),
                       ),
                     ),
-                    SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: _addUser,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple,
-                        padding:
-                        EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                  ),
+                SizedBox(height: 16),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Transform.rotate(
+                      angle: _currentRotation,
+                      child: Image.asset(
+                        'assets/images/bottle.png',
+                        width: screenWidth / 2,
+                        height: screenWidth / 2,
                       ),
-                      child: Icon(Icons.add, color: Colors.white),
+                    ),
+                    Positioned(
+                      top: 0,
+                      child: Icon(Icons.arrow_drop_down, color: Colors.redAccent, size: 40),
                     ),
                   ],
                 ),
                 SizedBox(height: 16),
-                // Display Users List
-                if (users.isNotEmpty)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: users
-                          .map(
-                            (user) => Chip(
-                          label: Text(user),
-                          backgroundColor: Colors.deepPurple[100],
-                          deleteIcon: Icon(Icons.close, color: Colors.deepPurple),
-                          onDeleted: () {
-                            setState(() {
-                              users.remove(user);
-                            });
-                          },
-                        ),
-                      )
-                          .toList(),
-                    ),
+                ElevatedButton(
+                  onPressed: users.isNotEmpty ? _spinBottle : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: users.isNotEmpty ? Colors.deepPurple : Colors.grey,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                SizedBox(height: 24),
-                // Spin the Bottle Section
-                Column(
-                  children: [
-                    Text(
-                      "Ready to spin?",
-                      style: TextStyle(
-                        fontSize: 20,
-                        color: Colors.deepPurple[700],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Bottle Image
-                        Transform.rotate(
-                          angle: _currentRotation,
-                          child: Image.asset(
-                            'assets/images/bottle.png', // Ensure this image exists in your assets
-                            width: screenWidth / 2,
-                            height: screenWidth / 2,
-                          ),
-                        ),
-                        // Pointer
-                        Positioned(
-                          top: 0,
-                          child: Icon(
-                            Icons.arrow_drop_down,
-                            color: Colors.redAccent,
-                            size: 40,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: users.isNotEmpty ? _spinBottle : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                        users.isNotEmpty ? Colors.deepPurple : Colors.grey,
-                        padding:
-                        EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        "Spin the Bottle",
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+                  child: Text("Spin the Bottle", style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
