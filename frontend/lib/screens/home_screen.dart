@@ -7,7 +7,6 @@ import 'drink_tracker_screen.dart';
 import 'calculator_screen.dart';
 import 'camera_screen.dart';
 import 'endless_runner_screen.dart';
-import 'package:blur/blur.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 
@@ -94,10 +93,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: FloatingBubbles(
                 noOfBubbles: 20,
                 colorsOfBubbles: [
-                  Colors.green.withAlpha(30),
-                  Colors.cyanAccent.withAlpha(30),
-                  Colors.lightBlueAccent.withAlpha(30),
-                  Colors.deepPurpleAccent.withAlpha(30),
+                  Colors.green.withAlpha(50),
+                  Colors.cyanAccent.withAlpha(50),
+                  Colors.lightBlueAccent.withAlpha(50),
+                  Colors.deepPurpleAccent.withAlpha(50),
                 ],
                 sizeFactor: 0.2,
                 duration: 5,
