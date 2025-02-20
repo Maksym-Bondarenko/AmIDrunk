@@ -3,7 +3,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../UI/global_timer_overlay.dart';
 import '../services/timer_provider.dart';
 
 class AlcoholCalculationScreen extends StatefulWidget {
@@ -13,7 +15,6 @@ class AlcoholCalculationScreen extends StatefulWidget {
 
 class _AlcoholCalculationScreenState extends State<AlcoholCalculationScreen> {
   final _formKey = GlobalKey<FormState>();
-
   final _ageController = TextEditingController();
   final _weightController = TextEditingController(); // in kg
   final _heightController = TextEditingController(); // in cm
@@ -29,6 +30,7 @@ class _AlcoholCalculationScreenState extends State<AlcoholCalculationScreen> {
   double _bmi = 0.0;
 
   final double _legalLimit = 0.05; // example legal limit
+  bool _calculated = false;
 
   Timer? _sobrietyTimer;
   Duration _remainingTime = Duration.zero;
@@ -80,6 +82,7 @@ class _AlcoholCalculationScreenState extends State<AlcoholCalculationScreen> {
         _timeToLegalLimit = timeToLegal;
         _bmi = bmi;
         _remainingTime = Duration.zero;
+        _calculated = true;
       });
     }
   }
@@ -133,185 +136,135 @@ class _AlcoholCalculationScreenState extends State<AlcoholCalculationScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          "Alcohol Level Estimator",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.deepPurple,
-        elevation: 4,
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
-        child: Card(
-          color: Colors.deepPurple[50],
-          elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: EdgeInsets.all(24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  Text(
-                    "Enter Your Details",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
-                    ),
-                  ),
-                  SizedBox(height: 24),
-                  _buildTextField(_ageController, "Age (years)", "Enter your age", TextInputType.number),
-                  SizedBox(height: 16),
-                  _buildTextField(_weightController, "Weight (kg)", "Enter your weight in kg", TextInputType.number),
-                  SizedBox(height: 16),
-                  _buildSexDropdown(),
-                  SizedBox(height: 16),
-                  _buildTextField(_heightController, "Height (cm)", "Enter your height in cm", TextInputType.number),
-                  SizedBox(height: 16),
-                  _buildTextField(_alcoholAmountController, "Alcohol Amount (ml)", "Volume of alcohol consumed in ml", TextInputType.number),
-                  SizedBox(height: 16),
-                  _buildTextField(_alcoholPercentageController, "Alcohol % (ABV)", "Alcohol percentage (e.g. 40 for whiskey)", TextInputType.number),
-                  SizedBox(height: 24),
-
-                  ElevatedButton(
-                    onPressed: _calculateBAC,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    ),
-                    child: Text(
-                      "Calculate",
-                      style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  SizedBox(height: 24),
-                  if (_calculatedBAC > 0)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Results:",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple,
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        _buildResultRow("Estimated BAC:", "${_calculatedBAC.toStringAsFixed(3)} g/dL"),
-                        SizedBox(height: 8),
-                        _buildResultRow("Time until BAC = 0:", _formatHours(_timeToZero)),
-                        SizedBox(height: 8),
-                        _buildResultRow("Time until BAC ≤ ${_legalLimit.toStringAsFixed(2)}:", _formatHours(_timeToLegalLimit)),
-                        SizedBox(height: 8),
-                        _buildResultRow("BMI:", _bmi.toStringAsFixed(2)),
-                        SizedBox(height: 16),
-                        if (showWarning)
-                          Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.red[100],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              "Warning: This level of intoxication is extremely dangerous!",
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red[800]),
-                            ),
-                          ),
-                        SizedBox(height: 24),
-                        // Sobriety Timer Section
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            if (timerProvider.isActive) {
-                              // Timer is already active, do nothing or show a message
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text("Sobriety timer is already running.")),
-                              );
-                            } else {
-                              // Choose target time based on user's choice (either until BAC = 0 or until legal limit)
-                              showModalBottomSheet(
-                                context: context,
-                                builder: (context) {
-                                  return Container(
-                                    padding: EdgeInsets.all(16.0),
-                                    child: Wrap(
-                                      children: [
-                                        Text(
-                                          "Set Sobriety Timer",
-                                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurple),
-                                        ),
-                                        SizedBox(height: 16),
-                                        ListTile(
-                                          leading: Icon(Icons.remove_red_eye, color: Colors.deepPurple),
-                                          title: Text("Time until BAC = 0"),
-                                          onTap: () {
-                                            Navigator.pop(context);
-                                            timerProvider.startTimer(Duration(
-                                              hours: _timeToZero.floor(),
-                                              minutes: ((_timeToZero - _timeToZero.floor()) * 60).floor(),
-                                            ));
-                                          },
-                                        ),
-                                        ListTile(
-                                          leading: Icon(Icons.check_circle, color: Colors.deepPurple),
-                                          title: Text("Time until BAC ≤ ${_legalLimit.toStringAsFixed(2)}"),
-                                          onTap: () {
-                                            Navigator.pop(context);
-                                            timerProvider.startTimer(Duration(
-                                              hours: _timeToLegalLimit.floor(),
-                                              minutes: ((_timeToLegalLimit - _timeToLegalLimit.floor()) * 60).floor(),
-                                            ));
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              );
-                            }
-                          },
-                          icon: Icon(Icons.timer, color: Colors.white),
-                          label: Text(
-                            "Set Sobriety Timer",
-                            style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
-                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        if (timerProvider.isActive)
-                          Center(
-                            child: Column(
-                              children: [
-                                Text(
-                                  "Time Remaining:",
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.deepPurple),
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  "${timerProvider.remainingDuration.inHours.toString().padLeft(2, '0')}:${(timerProvider.remainingDuration.inMinutes.remainder(60)).toString().padLeft(2, '0')}:${(timerProvider.remainingDuration.inSeconds.remainder(60)).toString().padLeft(2, '0')}",
-                                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.deepPurple),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                ],
-              ),
+        title: ShaderMask(
+          shaderCallback: (Rect bounds) {
+            return LinearGradient(
+              colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
+            ).createShader(bounds);
+          },
+          child: Text(
+            "Alcohol Level Estimator",
+            style: GoogleFonts.pacifico(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
         ),
+        centerTitle: true,
+        backgroundColor: Color(0xFF3A3A3A),
+        elevation: 0,
+      ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Card(
+                  color: Colors.black.withOpacity(0.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(width: 4, color: Colors.transparent),
+                  ),
+                  elevation: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          _buildTextField(_ageController, "Age (years)", "Enter your age"),
+                          SizedBox(height: 16),
+                          _buildTextField(_weightController, "Weight (kg)", "Enter your weight"),
+                          SizedBox(height: 16),
+                          _buildSexDropdown(),
+                          SizedBox(height: 16),
+                          _buildTextField(_heightController, "Height (cm)", "Enter your height"),
+                          SizedBox(height: 16),
+                          _buildTextField(_alcoholAmountController, "Alcohol Amount (ml)", "Volume consumed"),
+                          SizedBox(height: 16),
+                          _buildTextField(_alcoholPercentageController, "Alcohol % (ABV)", "Alcohol percentage"),
+                          SizedBox(height: 24),
+                          ElevatedButton(
+                            onPressed: _calculateBAC,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black.withOpacity(0.7),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            ),
+                            child: ShaderMask(
+                              shaderCallback: (Rect bounds) {
+                                return LinearGradient(
+                                  colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
+                                ).createShader(bounds);
+                              },
+                              child: Text(
+                                "Calculate",
+                                style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                          if (_calculatedBAC > 0) ...[
+                            Text("Estimated BAC: ${_calculatedBAC.toStringAsFixed(3)} g/dL"),
+                            Text("Time until BAC = 0: ${_formatHours(_timeToZero)}"),
+                            Text("Time until BAC ≤ $_legalLimit: ${_formatHours(_timeToLegalLimit)}"),
+                            if (_calculatedBAC > 0.3)
+                              Text("Warning: This level of intoxication is extremely dangerous!", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                          ],
+                          SizedBox(height: 24),
+                            if (_calculated)
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    builder: (context) {
+                                      return Container(
+                                        padding: EdgeInsets.all(16.0),
+                                        child: Wrap(
+                                          children: [
+                                            ListTile(
+                                              leading: Icon(Icons.timer, color: Colors.white),
+                                              title: Text("Set Sobriety Timer"),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                timerProvider.startTimer(Duration(
+                                                  hours: _timeToZero.floor(),
+                                                  minutes: ((_timeToZero - _timeToZero.floor()) * 60).floor(),
+                                                ));
+                                              },
+                                            ),
+                                            ListTile(
+                                              leading: Icon(Icons.timer, color: Colors.white),
+                                              title: Text("Set Safe Limit Timer"),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                timerProvider.startTimer(Duration(
+                                                  hours: _timeToLegalLimit.floor(),
+                                                  minutes: ((_timeToLegalLimit - _timeToLegalLimit.floor()) * 60).floor(),
+                                                ));
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                                icon: Icon(Icons.timer, color: Colors.white),
+                                label: Text("Set Timer", style: TextStyle(color: Colors.white)),
+                              ),
+
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          GlobalTimerOverlay(),
+        ],
       ),
     );
   }

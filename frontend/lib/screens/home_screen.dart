@@ -1,3 +1,4 @@
+import 'package:am_i_drank/screens/speen_the_bottle_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:floating_bubbles/floating_bubbles.dart';
 import '../UI/global_timer_overlay.dart';
@@ -103,6 +104,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 opacity: 70,
                 paintingStyle: PaintingStyle.stroke,
                 strokeWidth: 8,
+                shape: BubbleShape.circle,
+                speed: BubbleSpeed.normal,
               ),
             ),
           LayoutBuilder(
@@ -174,12 +177,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       shrinkWrap: true,
                       physics: NeverScrollableScrollPhysics(),
                       children: [
-                        _buildMenuButton(context, "Alcohol Calculator", Icons.calculate),
-                        _buildMenuButton(context, "Reaction Time Test", Icons.timer),
-                        _buildMenuButton(context, "Endless Runner", Icons.directions_run),
-                        _buildMenuButton(context, "Spin the Bottle", Icons.sports_bar),
-                        _buildMenuButton(context, "Alco-Camera", Icons.camera_alt),
-                        _buildMenuButton(context, "Drink Tracker", Icons.list_alt),
+                        _buildMenuButton(context, "Alcohol Calculator", Icons.calculate, AlcoholCalculationScreen()),
+                        _buildMenuButton(context, "Reaction Time Test", Icons.timer, ReactionTimeTestScreen()),
+                        _buildMenuButton(context, "Endless Runner", Icons.directions_run, EndlessRunnerScreen()),
+                        _buildMenuButton(context, "Spin the Bottle", Icons.sports_bar, SpinTheBottleScreen()),
+                        _buildMenuButton(context, "Alco-Camera", Icons.camera_alt, CameraScreen()),
+                        _buildMenuButton(context, "Drink Tracker", Icons.list_alt, DrinkTrackerScreen()),
                       ],
                     ),
                   ],
@@ -193,51 +196,78 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildMenuButton(BuildContext context, String title, IconData icon) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          width: 4,
-          color: Colors.transparent,
-        ),
-        gradient: LinearGradient(
-          colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
-        ),
-      ),
-      child: ElevatedButton(
-        onPressed: () {},
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.black.withOpacity(0.7),
-          shadowColor: Colors.transparent,
-          padding: EdgeInsets.all(16.0),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              width: 4,
-              color: Colors.transparent,
-            ),
+  Widget _buildMenuButton(BuildContext context, String title, IconData icon, Widget destination) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            width: 4,
+            color: Colors.transparent,
+          ),
+          gradient: LinearGradient(
+            colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
           ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 48,
-              color: Colors.white,
-            ),
-            SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => destination),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.black.withOpacity(0.7),
+            shadowColor: Colors.transparent,
+            padding: EdgeInsets.all(16.0),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                width: 4,
+                color: Colors.transparent,
               ),
             ),
-          ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ShaderMask(
+                shaderCallback: (Rect bounds) {
+                  return LinearGradient(
+                    colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
+                  ).createShader(bounds);
+                },
+                child: Icon(
+                  icon,
+                  size: 48,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 12),
+              ShaderMask(
+                shaderCallback: (Rect bounds) {
+                  return LinearGradient(
+                    colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
+                  ).createShader(bounds);
+                },
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.robotoMono(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

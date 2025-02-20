@@ -1,10 +1,19 @@
-// File: global_timer_overlay.dart
-
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
 import 'package:provider/provider.dart';
-import 'package:am_i_drank/services/timer_provider.dart';
+import '../services/timer_provider.dart';
+import '../UI/global_timer_overlay.dart';
 
-class GlobalTimerOverlay extends StatelessWidget {
+class GlobalTimerOverlay extends StatefulWidget {
+  @override
+  _GlobalTimerOverlayState createState() => _GlobalTimerOverlayState();
+}
+
+class _GlobalTimerOverlayState extends State<GlobalTimerOverlay> {
+  double _top = 20;
+  double _right = 20;
+
   @override
   Widget build(BuildContext context) {
     return Consumer<TimerProvider>(
@@ -19,25 +28,41 @@ class GlobalTimerOverlay extends StatelessWidget {
         final seconds = twoDigits(timerProvider.remainingDuration.inSeconds.remainder(60));
 
         return Positioned(
-          top: 10,
-          right: 10,
-          child: Card(
-            color: Colors.white.withOpacity(0.9),
-            elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          top: _top,
+          right: _right,
+          child: GestureDetector(
+            onPanUpdate: (details) {
+              setState(() {
+                _top += details.delta.dy;
+                _right -= details.delta.dx;
+              });
+            },
+            child: Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 8,
+                    offset: Offset(2, 2),
+                  )
+                ],
+              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.timer, color: Colors.deepPurple),
+                  Icon(Icons.timer, color: Colors.white, size: 24),
                   SizedBox(width: 8),
                   Text(
                     "$hours:$minutes:$seconds",
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
+                      color: Colors.white,
                     ),
                   ),
                   SizedBox(width: 8),
@@ -45,7 +70,7 @@ class GlobalTimerOverlay extends StatelessWidget {
                     onTap: () {
                       timerProvider.stopTimer();
                     },
-                    child: Icon(Icons.close, color: Colors.redAccent),
+                    child: Icon(Icons.close, color: Colors.black, size: 24),
                   ),
                 ],
               ),
