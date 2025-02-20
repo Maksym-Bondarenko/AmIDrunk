@@ -1,50 +1,66 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../UI/global_timer_overlay.dart';
 
 class ReactionTimeTestScreen extends StatefulWidget {
   @override
   _ReactionTimeTestScreenState createState() => _ReactionTimeTestScreenState();
 }
 
-class _ReactionTimeTestScreenState extends State<ReactionTimeTestScreen> {
+class _ReactionTimeTestScreenState extends State<ReactionTimeTestScreen>
+    with SingleTickerProviderStateMixin {
   static const int totalIterations = 20;
   final Random _random = Random();
-
   bool _testInProgress = false;
-  bool _shouldShowCircle = false;
   int _currentIteration = 0;
   List<double> _reactionTimes = [];
-
-  // Circle
   double? _circleX;
   double? _circleY;
-  double _circleDiameter = 60.0;
-
-  // Timing
   DateTime? _circleAppearedTime;
   Timer? _waitTimer;
+  late AnimationController _controller;
+  late Animation<double> _sizeAnimation;
+  late Animation<Color?> _colorAnimation;
+  bool _resultsShown = false;
 
-  // Store constraints for positioning the circle
-  BoxConstraints? _constraints;
-
-  // Colors (distinguishable)
   final List<Color> _possibleColors = [
-    Colors.red,
-    Colors.green,
-    Colors.blue,
-    Colors.deepOrange,
-    Colors.deepPurple,
-    Colors.pink,
-    Colors.teal,
-    Colors.brown,
-    Colors.indigo
+    Color(0xFF12c2e9),
+    Color(0xFFc471ed),
+    Color(0xFFf64f59),
+    Colors.cyan,
+    Colors.yellowAccent
   ];
-  Color _currentCircleColor = Colors.red;
+
+  double _testAreaWidth = 0;
+  double _testAreaHeight = 0;
+  double _circleDiameter = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: 2),
+    );
+    _sizeAnimation = Tween<double>(begin: 60.0, end: 5.0).animate(_controller)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _recordReaction(2.0);
+        }
+      });
+    _colorAnimation = ColorTween(
+      begin: _possibleColors.first,
+      end: _possibleColors.last,
+    ).animate(_controller);
+  }
 
   @override
   void dispose() {
     _waitTimer?.cancel();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -53,11 +69,9 @@ class _ReactionTimeTestScreenState extends State<ReactionTimeTestScreen> {
       _testInProgress = true;
       _currentIteration = 0;
       _reactionTimes.clear();
-      _circleX = null;
-      _circleY = null;
-      _circleAppearedTime = null;
-      _shouldShowCircle = true;
+      _resultsShown = false;
     });
+    _startNextIteration();
   }
 
   void _startNextIteration() {
@@ -65,280 +79,196 @@ class _ReactionTimeTestScreenState extends State<ReactionTimeTestScreen> {
       _finishTest();
       return;
     }
-    setState(() {
-      // Indicate that we want to show the next circle
-      _shouldShowCircle = true;
-      _circleX = null;
-      _circleY = null;
-      _circleAppearedTime = null;
-    });
+    Future.delayed(Duration(milliseconds: 500), _showCircle);
   }
 
   void _showCircle() {
-    if (_constraints == null) return; // Should not happen if called correctly
+    if (_testAreaWidth == 0 || _testAreaHeight == 0) return;
 
-    final constraints = _constraints!;
-    double maxX = constraints.maxWidth - _circleDiameter;
-    double maxY = constraints.maxHeight - _circleDiameter;
+    // Ensure the circle is fully inside the test area, even at its largest size
+    double maxX = _testAreaWidth - (_circleDiameter + 20);
+    double maxY = _testAreaHeight - (_circleDiameter + 20);
 
-    if (maxX < 0) maxX = 0;
-    if (maxY < 0) maxY = 0;
-
-    double posX = _random.nextDouble() * maxX;
-    double posY = _random.nextDouble() * maxY;
-
-    Color color = _possibleColors[_random.nextInt(_possibleColors.length)];
+    double posX = 10 + _random.nextDouble() * maxX;
+    double posY = 10 + _random.nextDouble() * maxY;
 
     setState(() {
       _circleX = posX;
       _circleY = posY;
-      _currentCircleColor = color;
       _circleAppearedTime = DateTime.now();
-      _shouldShowCircle = false; // Circle shown, reset the flag
     });
 
-    // Start a 2-second timer to record reaction if no tap
-    _waitTimer?.cancel();
-    _waitTimer = Timer(Duration(seconds: 2), () {
-      if (_testInProgress && _currentIteration < totalIterations) {
-        _recordReaction(2.0);
-      }
-    });
+    _controller.reset();
+    _controller.forward();
   }
+
 
   void _onCircleTap() {
     if (!_testInProgress || _circleAppearedTime == null) return;
-    final reactionTime = DateTime.now().difference(_circleAppearedTime!).inMilliseconds / 1000.0;
+    final reactionTime =
+        DateTime.now().difference(_circleAppearedTime!).inMilliseconds / 1000.0;
     _recordReaction(reactionTime);
   }
 
   void _recordReaction(double time) {
-    _waitTimer?.cancel();
     _reactionTimes.add(time);
     _currentIteration++;
-    _startNextIteration();
+    if (_currentIteration < totalIterations) {
+      _startNextIteration();
+    } else {
+      _finishTest();
+    }
   }
 
   void _finishTest() {
+    if (_resultsShown) return;
+    _resultsShown = true;
     setState(() {
       _testInProgress = false;
     });
-    double avg = _reactionTimes.reduce((a,b) => a+b) / _reactionTimes.length;
+    double avg = _reactionTimes.reduce((a, b) => a + b) / _reactionTimes.length;
     String state = _classifySobriety(avg);
-
-    showDialog(
-        context: context,
-        builder: (ctx) {
-          return AlertDialog(
-            title: Text("Test Complete"),
-            content: Text("Average reaction time: ${avg.toStringAsFixed(3)}s\nYou are: $state"),
-            actions: [
-              TextButton(
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                  },
-                  child: Text("OK")
-              )
-            ],
-          );
-        }
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showResults(avg, state);
+    });
   }
 
   String _classifySobriety(double avgTime) {
-    // Arbitrary thresholds
     if (avgTime < 0.7) return "Sober";
     if (avgTime < 1.0) return "Tipsy";
     if (avgTime < 1.5) return "Drunk";
     return "Very Drunk";
   }
 
-  void _resetTest() {
-    setState(() {
-      _testInProgress = false;
-      _currentIteration = 0;
-      _reactionTimes.clear();
-      _circleX = null;
-      _circleY = null;
-      _circleAppearedTime = null;
-      _shouldShowCircle = false;
-    });
-  }
-
-  Color _getReactionTimeColor(double rt) {
-    return rt < 0.7 ? Colors.green : Colors.red;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Reaction Time Test"),
-        backgroundColor: Colors.deepPurple,
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          _constraints = constraints; // store constraints for circle placement
-          // If test is in progress and we haven't shown a circle yet this iteration, do so now
-          if (_testInProgress && _shouldShowCircle && _currentIteration < totalIterations) {
-            // Show the circle as soon as we have constraints
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              // Note: If the user environment doesn't allow addPostFrameCallback at all,
-              // we can directly call _showCircle here in setState:
-              // but this might cause reentrancy issues if done directly in build.
-              // We'll try calling it in a Future.microtask:
-              Future.microtask(() => _showCircle());
-            });
-          }
-
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: _buildContent(),
+  void _showResults(double avg, String state) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Test Complete", style: GoogleFonts.pacifico()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "Average reaction time: ${avg.toStringAsFixed(3)}s",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              "You are: $state",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: state == "Sober"
+                    ? Colors.green
+                    : state == "Tipsy"
+                    ? Colors.yellow
+                    : Colors.red,
               ),
-              // Circle on top if present
-              if (_testInProgress && _circleX != null && _circleY != null)
-                Positioned(
-                  left: _circleX,
-                  top: _circleY,
-                  child: GestureDetector(
-                    onTap: _onCircleTap,
-                    child: Container(
-                      width: _circleDiameter,
-                      height: _circleDiameter,
-                      decoration: BoxDecoration(
-                        color: _currentCircleColor,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          );
-        },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text("OK", style: TextStyle(fontSize: 16)),
+          )
+        ],
       ),
     );
   }
 
-  Widget _buildContent() {
-    // Show last reaction time if available
-    Widget lastReactionTimeWidget = Container();
-    if (_reactionTimes.isNotEmpty) {
-      double lastRT = _reactionTimes.last;
-      lastReactionTimeWidget = Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: Text(
-          "Last Reaction Time: ${lastRT.toStringAsFixed(3)}s",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: _getReactionTimeColor(lastRT),
-          ),
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
+  @override
+  Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+    _testAreaWidth = screenWidth * 0.9;
+    _testAreaHeight = screenHeight * 0.7;
+    _circleDiameter = _testAreaWidth * 0.12;
 
-    if (!_testInProgress && _reactionTimes.isEmpty) {
-      // Instructions before test start
-      return SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
-        child: Card(
-          elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text("Test Your Reaction Time!",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 16),
-                Text("Instructions:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                SizedBox(height: 8),
-                Text("Press 'Start Test' to begin. A circle will appear at random places on the screen. "
-                    "Tap it as quickly as possible. If you don't tap it within 2 seconds, it automatically moves on. "
-                    "After 20 iterations, you'll see your average reaction time and a guess of your sobriety level."),
-                SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _startTest,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14)
-                  ),
-                  child: Text("Start Test", style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (_testInProgress && _currentIteration < totalIterations) {
-      // During the test: show iteration info, last reaction time if any, and a cancel button
-      return Column(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Reaction Time Test",
+            style: GoogleFonts.pacifico(color: Colors.white)),
+        centerTitle: true,
+        backgroundColor: Color(0xFF3A3A3A),
+      ),
+      body: Stack(
         children: [
-          SizedBox(height: 16),
-          lastReactionTimeWidget,
-          Text("Iteration ${_currentIteration+1} of $totalIterations",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 16),
-          Text("Tap the circle as fast as you can!", textAlign: TextAlign.center),
-          SizedBox(height: 20),
-          TextButton(
-              onPressed: _resetTest,
-              child: Text("Cancel Test", style: TextStyle(color: Colors.red))
-          ),
-          // The rest of the space is left empty so the circle can appear anywhere.
-        ],
-      );
-    }
-
-    // Test completed
-    double avg = 0.0;
-    if (_reactionTimes.isNotEmpty) {
-      avg = _reactionTimes.reduce((a,b) => a+b) / _reactionTimes.length;
-    }
-    String state = _classifySobriety(avg);
-
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(16.0),
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              lastReactionTimeWidget,
-              Text("Results",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
-                textAlign: TextAlign.center,
+         Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Text(
+                    "Test Your Reaction Time! Tap the circle as fast as you can!",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (_reactionTimes.isNotEmpty)
+                    Text(
+                      "Last: ${_reactionTimes.last.toStringAsFixed(3)}s | Avg: ${(_reactionTimes.reduce((a, b) => a + b) / _reactionTimes.length).toStringAsFixed(3)}s",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                ],
               ),
-              SizedBox(height: 16),
-              Text("Average Reaction Time: ${avg.toStringAsFixed(3)}s\nYou are: $state",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18)),
-              SizedBox(height: 20),
+            ),
+            if (!_testInProgress)
               ElevatedButton(
                 onPressed: _startTest,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14)
-                ),
-                child: Text("Retest", style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)),
+                child: Text("Start Test",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ),
-            ],
-          ),
+            if (_testInProgress)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Center(
+                    child: Container(
+                      width: _testAreaWidth,
+                      height: _testAreaHeight,
+                      decoration: BoxDecoration(
+                        border: Border.all(width: 4, color: Colors.cyanAccent),
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.transparent,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: _possibleColors,
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          if (_circleX != null && _circleY != null)
+                            Positioned(
+                              left: _circleX,
+                              top: _circleY,
+                              child: GestureDetector(
+                                onTap: _onCircleTap,
+                                child: AnimatedBuilder(
+                                  animation: _controller,
+                                  builder: (context, child) {
+                                    return Container(
+                                      width: _sizeAnimation.value,
+                                      height: _sizeAnimation.value,
+                                      decoration: BoxDecoration(
+                                        color: _colorAnimation.value,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
+          GlobalTimerOverlay(),
+        ]
       ),
     );
   }
