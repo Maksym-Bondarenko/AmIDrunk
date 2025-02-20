@@ -1,18 +1,59 @@
-// File: home_screen.dart
-
-import 'package:am_i_drank/screens/speen_the_bottle_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:floating_bubbles/floating_bubbles.dart';
 import '../UI/global_timer_overlay.dart';
 import 'reaction_time_screen.dart';
 import 'drink_tracker_screen.dart';
 import 'calculator_screen.dart';
 import 'camera_screen.dart';
 import 'endless_runner_screen.dart';
+import 'package:blur/blur.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  bool showBubbles = false;
+  late AnimationController _controller;
+  late Animation<double> _rotationAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: Duration(seconds: 1),
+      vsync: this,
+    );
+
+    _rotationAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _triggerBubbles() {
+    setState(() {
+      showBubbles = true;
+    });
+    Future.delayed(Duration(seconds: 5), () {
+      setState(() {
+        showBubbles = false;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Determine the number of columns based on screen width for responsiveness
     int getCrossAxisCount(double width) {
       if (width >= 1200) return 4;
       if (width >= 800) return 3;
@@ -21,19 +62,49 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          "Drunkenness Estimator",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return LinearGradient(
+                  colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
+                ).createShader(bounds);
+              },
+              child: Text(
+                "Drunkenness Estimator",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            Icon(Icons.music_note, color: Colors.greenAccent),
+          ],
         ),
         centerTitle: true,
-        backgroundColor: Colors.deepPurple,
-        elevation: 4,
+        backgroundColor: Color(0xFF3A3A3A),
+        elevation: 0,
       ),
       body: Stack(
         children: [
+          if (showBubbles)
+            Positioned.fill(
+              child: FloatingBubbles(
+                noOfBubbles: 20,
+                colorsOfBubbles: [
+                  Colors.green.withAlpha(30),
+                  Colors.cyanAccent.withAlpha(30),
+                  Colors.lightBlueAccent.withAlpha(30),
+                  Colors.deepPurpleAccent.withAlpha(30),
+                ],
+                sizeFactor: 0.2,
+                duration: 5,
+                opacity: 70,
+                paintingStyle: PaintingStyle.stroke,
+                strokeWidth: 8,
+              ),
+            ),
           LayoutBuilder(
             builder: (context, constraints) {
               int crossAxisCount = getCrossAxisCount(constraints.maxWidth);
@@ -41,39 +112,61 @@ class HomeScreen extends StatelessWidget {
                 padding: EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    // Welcome Header
-                    Card(
-                      color: Colors.deepPurple[50],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 4,
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.local_drink,
-                              size: 60,
-                              color: Colors.deepPurple,
-                            ),
-                            SizedBox(width: 16),
-                            Expanded(
-                              child: Text(
-                                "Welcome to the Drunkenness Estimator!\nChoose a tool below to get started.",
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.deepPurple[800],
+                    GestureDetector(
+                      onTap: _triggerBubbles,
+                      child: Card(
+                        color: Colors.black.withOpacity(0.3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            width: 4,
+                            color: Colors.transparent,
+                          ),
+                        ),
+                        elevation: 0,
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Row(
+                            children: [
+                              RotationTransition(
+                                turns: _rotationAnimation,
+                                child: ShaderMask(
+                                  shaderCallback: (Rect bounds) {
+                                    return LinearGradient(
+                                      colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
+                                    ).createShader(bounds);
+                                  },
+                                  child: Icon(
+                                    Icons.local_drink,
+                                    size: 60,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                              SizedBox(width: 16),
+                              Expanded(
+                                child: ShaderMask(
+                                  shaderCallback: (Rect bounds) {
+                                    return LinearGradient(
+                                      colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
+                                    ).createShader(bounds);
+                                  },
+                                  child: Text(
+                                    "Welcome to the Drunkenness Estimator!\nChoose a tool below to get started.",
+                                    style: GoogleFonts.pacifico(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                     SizedBox(height: 24),
-                    // Grid of Menu Buttons
                     GridView.count(
                       crossAxisCount: crossAxisCount,
                       crossAxisSpacing: 16.0,
@@ -81,127 +174,71 @@ class HomeScreen extends StatelessWidget {
                       shrinkWrap: true,
                       physics: NeverScrollableScrollPhysics(),
                       children: [
-                        _buildMenuButton(
-                          context,
-                          title: "Alcohol Calculator",
-                          icon: Icons.calculate,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => AlcoholCalculationScreen()),
-                            );
-                          },
-                        ),
-                        _buildMenuButton(
-                          context,
-                          title: "Reaction Time Test",
-                          icon: Icons.timer,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => ReactionTimeTestScreen()),
-                            );
-                          },
-                        ),
-                        _buildMenuButton(
-                          context,
-                          title: "Endless Runner",
-                          icon: Icons.directions_run,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => EndlessRunnerScreen()),
-                            );
-                          },
-                        ),
-                        _buildMenuButton(
-                          context,
-                          title: "Spin the Bottle",
-                          icon: Icons.sports_bar,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => SpinTheBottleScreen()),
-                            );
-                          },
-                        ),
-                        _buildMenuButton(
-                          context,
-                          title: "Alco-Camera",
-                          icon: Icons.camera_alt,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => CameraScreen()),
-                            );
-                          },
-                        ),
-                        _buildMenuButton(
-                          context,
-                          title: "Drink Tracker",
-                          icon: Icons.list_alt,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => DrinkTrackerScreen()),
-                            );
-                          },
-                        ),
+                        _buildMenuButton(context, "Alcohol Calculator", Icons.calculate),
+                        _buildMenuButton(context, "Reaction Time Test", Icons.timer),
+                        _buildMenuButton(context, "Endless Runner", Icons.directions_run),
+                        _buildMenuButton(context, "Spin the Bottle", Icons.sports_bar),
+                        _buildMenuButton(context, "Alco-Camera", Icons.camera_alt),
+                        _buildMenuButton(context, "Drink Tracker", Icons.list_alt),
                       ],
-                    ),
-                    SizedBox(height: 24),
-                    // Optional: Add a footer or additional information
-                    Text(
-                      "© 2024 Drunkenness Estimator. Developed by LORD MAX. All rights reserved.",
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                      ),
-                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
               );
             },
           ),
-          // Global Timer Overlay
           GlobalTimerOverlay(),
         ],
       ),
     );
   }
 
-  Widget _buildMenuButton(BuildContext context,
-      {required String title, required IconData icon, required VoidCallback onPressed}) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        foregroundColor: Colors.white, backgroundColor: Colors.deepPurple, // Splash color
-        shadowColor: Colors.deepPurpleAccent,
-        elevation: 6,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+  Widget _buildMenuButton(BuildContext context, String title, IconData icon) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          width: 4,
+          color: Colors.transparent,
         ),
-        padding: EdgeInsets.all(16.0),
+        gradient: LinearGradient(
+          colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
+        ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 48,
-            color: Colors.white,
-          ),
-          SizedBox(height: 12),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+      child: ElevatedButton(
+        onPressed: () {},
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.black.withOpacity(0.7),
+          shadowColor: Colors.transparent,
+          padding: EdgeInsets.all(16.0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              width: 4,
+              color: Colors.transparent,
             ),
           ),
-        ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 48,
+              color: Colors.white,
+            ),
+            SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
