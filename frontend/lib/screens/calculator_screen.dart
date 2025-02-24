@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../UI/global_timer_overlay.dart';
 import '../services/timer_provider.dart';
 
@@ -30,10 +31,54 @@ class _AlcoholCalculationScreenState extends State<AlcoholCalculationScreen> {
   double _bmi = 0.0;
 
   final double _legalLimit = 0.05; // example legal limit
+  bool _showWarning = false;
   bool _calculated = false;
 
   Timer? _sobrietyTimer;
-  Duration _remainingTime = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedData();
+  }
+
+  /// Load last saved user inputs and BAC results
+  Future<void> _loadSavedData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _ageController.text = prefs.getString('age') ?? "";
+      _weightController.text = prefs.getString('weight') ?? "";
+      _heightController.text = prefs.getString('height') ?? "";
+      _alcoholAmountController.text = prefs.getString('alcoholAmount') ?? "";
+      _alcoholPercentageController.text = prefs.getString('alcoholPercentage') ?? "";
+      _selectedSex = prefs.getString('sex');
+
+      _calculatedBAC = prefs.getDouble('calculatedBAC') ?? 0.0;
+      _timeToZero = prefs.getDouble('timeToZero') ?? 0.0;
+      _timeToLegalLimit = prefs.getDouble('timeToLegalLimit') ?? 0.0;
+      _bmi = prefs.getDouble('bmi') ?? 0.0;
+      _calculated = prefs.getBool('calculated') ?? false;
+      _showWarning = _calculatedBAC > 0.30;
+    });
+  }
+
+  /// Save user input values and BAC results
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('age', _ageController.text);
+    await prefs.setString('weight', _weightController.text);
+    await prefs.setString('height', _heightController.text);
+    await prefs.setString('alcoholAmount', _alcoholAmountController.text);
+    await prefs.setString('alcoholPercentage', _alcoholPercentageController.text);
+    await prefs.setString('sex', _selectedSex ?? "");
+
+    await prefs.setDouble('calculatedBAC', _calculatedBAC);
+    await prefs.setDouble('timeToZero', _timeToZero);
+    await prefs.setDouble('timeToLegalLimit', _timeToLegalLimit);
+    await prefs.setDouble('bmi', _bmi);
+    await prefs.setBool('calculated', _calculated);
+  }
+
 
   void _calculateBAC() {
     if (_formKey.currentState!.validate()) {
@@ -81,9 +126,11 @@ class _AlcoholCalculationScreenState extends State<AlcoholCalculationScreen> {
         _timeToZero = timeToZero;
         _timeToLegalLimit = timeToLegal;
         _bmi = bmi;
-        _remainingTime = Duration.zero;
+        _showWarning = _calculatedBAC > 0.30;
         _calculated = true;
       });
+
+      _saveData();
     }
   }
 
@@ -131,7 +178,6 @@ class _AlcoholCalculationScreenState extends State<AlcoholCalculationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool showWarning = _calculatedBAC > 0.30; // Adjust this threshold as needed
     final timerProvider = Provider.of<TimerProvider>(context);
 
     return Scaffold(
@@ -323,17 +369,10 @@ class _AlcoholCalculationScreenState extends State<AlcoholCalculationScreen> {
 
   Widget _buildResultRow(String title, String value) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Expanded(
-          child: Text(
-            title,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.deepPurple),
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(fontSize: 16, color: Colors.black87),
-        ),
+        Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(value, style: TextStyle(fontSize: 16, color: Colors.black87)),
       ],
     );
   }

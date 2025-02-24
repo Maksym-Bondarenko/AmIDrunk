@@ -1,7 +1,9 @@
 import 'package:am_i_drank/screens/speen_the_bottle_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:floating_bubbles/floating_bubbles.dart';
+import 'package:provider/provider.dart';
 import '../UI/global_timer_overlay.dart';
+import '../services/session_state_provider.dart';
 import 'reaction_time_screen.dart';
 import 'drink_tracker_screen.dart';
 import 'calculator_screen.dart';
@@ -20,6 +22,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   late AnimationController _controller;
   late Animation<double> _rotationAnimation;
 
+  /// Stores the drunkenness states loaded from the provider
+  late Map<String, String> drunkennessStates;
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +38,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
     _controller.repeat(reverse: true);
+
+    /// Load drunkenness states from provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = Provider.of<SessionStateProvider>(context, listen: false);
+      setState(() {
+        drunkennessStates = provider.drunkennessStates;
+      });
+    });
   }
 
   @override
@@ -196,6 +209,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildMenuButton(BuildContext context, String title, IconData icon, Widget destination) {
+    String state = drunkennessStates[title] ?? "";
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -233,35 +248,55 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
             children: [
-              ShaderMask(
-                shaderCallback: (Rect bounds) {
-                  return LinearGradient(
-                    colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
-                  ).createShader(bounds);
-                },
-                child: Icon(
-                  icon,
-                  size: 48,
-                  color: Colors.white,
-                ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ShaderMask(
+                    shaderCallback: (Rect bounds) {
+                      return LinearGradient(
+                        colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
+                      ).createShader(bounds);
+                    },
+                    child: Icon(
+                      icon,
+                      size: 48,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  ShaderMask(
+                    shaderCallback: (Rect bounds) {
+                      return LinearGradient(
+                        colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
+                      ).createShader(bounds);
+                    },
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.robotoMono(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: 12),
-              ShaderMask(
-                shaderCallback: (Rect bounds) {
-                  return LinearGradient(
-                    colors: [Color(0xFF12c2e9), Color(0xFFc471ed), Color(0xFFf64f59)],
-                  ).createShader(bounds);
-                },
-                child: Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.robotoMono(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+              if (state.isNotEmpty)
+              Positioned(
+                top: 5,
+                right: 5,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    state.toUpperCase(),
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ),
               ),

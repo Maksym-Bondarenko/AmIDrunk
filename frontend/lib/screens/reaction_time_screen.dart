@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../UI/global_timer_overlay.dart';
 
@@ -11,7 +12,7 @@ class ReactionTimeTestScreen extends StatefulWidget {
 }
 
 class _ReactionTimeTestScreenState extends State<ReactionTimeTestScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const int totalIterations = 20;
   final Random _random = Random();
   bool _testInProgress = false;
@@ -21,9 +22,6 @@ class _ReactionTimeTestScreenState extends State<ReactionTimeTestScreen>
   double? _circleY;
   DateTime? _circleAppearedTime;
   Timer? _waitTimer;
-  late AnimationController _controller;
-  late Animation<double> _sizeAnimation;
-  late Animation<Color?> _colorAnimation;
   bool _resultsShown = false;
 
   final List<Color> _possibleColors = [
@@ -37,31 +35,76 @@ class _ReactionTimeTestScreenState extends State<ReactionTimeTestScreen>
   double _testAreaWidth = 0;
   double _testAreaHeight = 0;
   double _circleDiameter = 0;
+  double _lastReactionTime = 0.0;
+  double _averageReactionTime = 0.0;
+  String _drunkennessStatus = "Unknown";
+
+  late AnimationController _circleController;
+  late Animation<double> _sizeAnimation;
+  late Animation<Color?> _circleColorAnimation;
+
+  late AnimationController _borderController;
+  late Animation<Color?> _borderColorAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+
+    // Animation for each circle
+    _circleController = AnimationController(
       vsync: this,
       duration: Duration(seconds: 2),
     );
-    _sizeAnimation = Tween<double>(begin: 60.0, end: 5.0).animate(_controller)
+    _sizeAnimation = Tween<double>(begin: 60.0, end: 5.0).animate(_circleController)
       ..addStatusListener((status) {
         if (status == AnimationStatus.completed) {
           _recordReaction(2.0);
         }
       });
-    _colorAnimation = ColorTween(
+
+    _circleColorAnimation = ColorTween(
       begin: _possibleColors.first,
       end: _possibleColors.last,
-    ).animate(_controller);
+    ).animate(_circleController);
+
+    // Animation for the **border color** transitioning **throughout the round**
+    _borderController = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: totalIterations * 2), // Slowly changes across the entire test
+    )..repeat(reverse: false);
+
+    _borderColorAnimation = ColorTween(
+      begin: _possibleColors.first,
+      end: _possibleColors.last,
+    ).animate(_borderController);
+
+    _loadSavedResults();
   }
 
   @override
   void dispose() {
     _waitTimer?.cancel();
-    _controller.dispose();
+    _circleController.dispose();
+    _borderController.dispose();
     super.dispose();
+  }
+
+  /// Loads last saved results when the screen opens
+  Future<void> _loadSavedResults() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _lastReactionTime = prefs.getDouble('lastReactionTime') ?? 0.0;
+      _averageReactionTime = prefs.getDouble('averageReactionTime') ?? 0.0;
+      _drunkennessStatus = prefs.getString('drunkennessStatus') ?? "Unknown";
+    });
+  }
+
+  /// Saves the latest reaction time results
+  Future<void> _saveResults(double last, double avg, String state) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('lastReactionTime', last);
+    await prefs.setDouble('averageReactionTime', avg);
+    await prefs.setString('drunkennessStatus', state);
   }
 
   void _startTest() {
@@ -71,6 +114,7 @@ class _ReactionTimeTestScreenState extends State<ReactionTimeTestScreen>
       _reactionTimes.clear();
       _resultsShown = false;
     });
+    _borderController.forward(from: 0); // Restart the border color animation
     _startNextIteration();
   }
 
@@ -98,11 +142,11 @@ class _ReactionTimeTestScreenState extends State<ReactionTimeTestScreen>
       _circleAppearedTime = DateTime.now();
     });
 
-    _controller.reset();
-    _controller.forward();
+    _circleController.reset();
+    _circleController.forward();
   }
 
-
+  /// Records reaction time when the user taps the circle
   void _onCircleTap() {
     if (!_testInProgress || _circleAppearedTime == null) return;
     final reactionTime =
@@ -126,8 +170,17 @@ class _ReactionTimeTestScreenState extends State<ReactionTimeTestScreen>
     setState(() {
       _testInProgress = false;
     });
+
     double avg = _reactionTimes.reduce((a, b) => a + b) / _reactionTimes.length;
     String state = _classifySobriety(avg);
+
+    _saveResults(_reactionTimes.last, avg, state);
+    setState(() {
+      _lastReactionTime = _reactionTimes.last;
+      _averageReactionTime = avg;
+      _drunkennessStatus = state;
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showResults(avg, state);
     });
@@ -204,11 +257,17 @@ class _ReactionTimeTestScreenState extends State<ReactionTimeTestScreen>
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
-                  if (_reactionTimes.isNotEmpty)
+                  if (_testInProgress)
+                    Text("Round: ${_currentIteration + 1}/$totalIterations",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.cyan)),
+                  if (_lastReactionTime > 0)
                     Text(
-                      "Last: ${_reactionTimes.last.toStringAsFixed(3)}s | Avg: ${(_reactionTimes.reduce((a, b) => a + b) / _reactionTimes.length).toStringAsFixed(3)}s",
+                      "Last: ${_lastReactionTime.toStringAsFixed(3)}s | Avg: ${_averageReactionTime.toStringAsFixed(3)}s",
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
+                  Text("Last Drunkenness Status: $_drunkennessStatus",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
             ),
@@ -223,44 +282,47 @@ class _ReactionTimeTestScreenState extends State<ReactionTimeTestScreen>
                 child: Padding(
                   padding: const EdgeInsets.all(12.0),
                   child: Center(
-                    child: Container(
-                      width: _testAreaWidth,
-                      height: _testAreaHeight,
-                      decoration: BoxDecoration(
-                        border: Border.all(width: 4, color: Colors.cyanAccent),
-                        borderRadius: BorderRadius.circular(12),
-                        color: Colors.transparent,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: _possibleColors,
-                        ),
-                      ),
-                      child: Stack(
-                        children: [
-                          if (_circleX != null && _circleY != null)
-                            Positioned(
-                              left: _circleX,
-                              top: _circleY,
-                              child: GestureDetector(
-                                onTap: _onCircleTap,
-                                child: AnimatedBuilder(
-                                  animation: _controller,
-                                  builder: (context, child) {
-                                    return Container(
-                                      width: _sizeAnimation.value,
-                                      height: _sizeAnimation.value,
-                                      decoration: BoxDecoration(
-                                        color: _colorAnimation.value,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
+                    child: AnimatedBuilder(
+                      animation: _borderColorAnimation,
+                      builder: (context, child) {
+                        return Container(
+                          width: _testAreaWidth,
+                          height: _testAreaHeight,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                                width: 4,
+                                color: _borderColorAnimation.value ?? Colors.white
                             ),
-                        ],
-                      ),
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.transparent,
+                          ),
+                          child: Stack(
+                            children: [
+                              if (_circleX != null && _circleY != null)
+                                Positioned(
+                                  left: _circleX,
+                                  top: _circleY,
+                                  child: GestureDetector(
+                                    onTap: _onCircleTap,
+                                    child: AnimatedBuilder(
+                                      animation: _circleController,
+                                      builder: (context, child) {
+                                        return Container(
+                                          width: _sizeAnimation.value,
+                                          height: _sizeAnimation.value,
+                                          decoration: BoxDecoration(
+                                            color: _circleColorAnimation.value,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),

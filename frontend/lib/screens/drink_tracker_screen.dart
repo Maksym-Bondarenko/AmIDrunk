@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../UI/global_timer_overlay.dart';
+import '../models/drink_entry.dart';
 
 class DrinkTrackerScreen extends StatefulWidget {
   @override
@@ -15,24 +18,60 @@ class _DrinkTrackerScreenState extends State<DrinkTrackerScreen> {
   List<DrinkEntry> _drinkLog = [];
 
   @override
+  void initState() {
+    super.initState();
+    _loadSavedDrinks();
+  }
+
+  @override
   void dispose() {
     _drinkTypeController.dispose();
     _drinkAmountController.dispose();
     super.dispose();
   }
 
+  /// Load saved drinks from SharedPreferences
+  Future<void> _loadSavedDrinks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? savedDrinks = prefs.getString('drink_log');
+    if (savedDrinks != null) {
+      setState(() {
+        _drinkLog = (jsonDecode(savedDrinks) as List)
+            .map((data) => DrinkEntry.fromJson(data))
+            .toList();
+      });
+    }
+  }
+
+  /// Save drinks to SharedPreferences
+  Future<void> _saveDrinks() async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('drink_log', jsonEncode(_drinkLog));
+  }
+
   void _addDrink() {
     if (_formKey.currentState!.validate()) {
       final drinkType = _drinkTypeController.text.trim();
       final drinkAmount = double.parse(_drinkAmountController.text.trim());
+
       setState(() {
         _drinkLog.add(DrinkEntry(type: drinkType, amount: drinkAmount, time: _selectedTime));
         _drinkTypeController.clear();
         _drinkAmountController.clear();
         _selectedTime = DateTime.now();
       });
+
+      _saveDrinks(); // Save updated list
+
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Drink added successfully!")));
     }
+  }
+
+  void _removeDrink(int index) {
+    setState(() {
+      _drinkLog.removeAt(index);
+    });
+    _saveDrinks(); // Save after removal
   }
 
   void _selectTime(BuildContext context) async {
@@ -172,11 +211,7 @@ class _DrinkTrackerScreenState extends State<DrinkTrackerScreen> {
                   subtitle: Text("${drink.amount.toStringAsFixed(1)} ml at ${_formatDateTime(drink.time)}"),
                   trailing: IconButton(
                     icon: Icon(Icons.delete, color: Colors.redAccent),
-                    onPressed: () {
-                      setState(() {
-                        _drinkLog.removeAt(index);
-                      });
-                    },
+                    onPressed: () => _removeDrink(index),
                   ),
                 );
               },
@@ -186,11 +221,4 @@ class _DrinkTrackerScreenState extends State<DrinkTrackerScreen> {
       ),
     );
   }
-}
-
-class DrinkEntry {
-  final String type;
-  final double amount;
-  final DateTime time;
-  DrinkEntry({required this.type, required this.amount, required this.time});
 }

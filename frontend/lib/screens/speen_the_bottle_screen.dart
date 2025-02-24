@@ -1,6 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../UI/global_timer_overlay.dart';
 
 class SpinTheBottleScreen extends StatefulWidget {
   @override
@@ -14,6 +17,7 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen>
   late AnimationController _controller;
   late Animation<double> _rotationAnimation;
   double _currentRotation = 0.0;
+  String? lastWinner;
 
   @override
   void initState() {
@@ -26,6 +30,26 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen>
         _currentRotation = _rotationAnimation.value;
       });
     });
+
+    _loadSavedData(); // Load users & last winner on startup
+  }
+
+  /// Load stored users and last winner from SharedPreferences
+  Future<void> _loadSavedData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      users = prefs.getStringList('spin_bottle_users') ?? [];
+      lastWinner = prefs.getString('last_winner');
+    });
+  }
+
+  /// Save users list and last winner to SharedPreferences
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('spin_bottle_users', users);
+    if (lastWinner != null) {
+      await prefs.setString('last_winner', lastWinner!);
+    }
   }
 
   void _addUser() {
@@ -34,7 +58,15 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen>
         users.add(_userController.text.trim());
       });
       _userController.clear();
+      _saveData(); // Save updated users list
     }
+  }
+
+  void _removeUser(String user) {
+    setState(() {
+      users.remove(user);
+    });
+    _saveData(); // Save updated users list
   }
 
   void _spinBottle() {
@@ -60,8 +92,11 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen>
       setState(() {
         _currentRotation = _currentRotation % (2 * pi);
       });
-      String winner = users[random.nextInt(users.length)];
-      _showWinnerDialog(winner);
+
+      lastWinner = users[random.nextInt(users.length)];
+      _saveData(); // Save last winner
+
+      _showWinnerDialog(lastWinner!);
     });
   }
 
@@ -147,7 +182,13 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen>
                       child: Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: users.map((user) => Chip(label: Text(user))).toList(),
+                        children: users
+                            .map((user) => Chip(
+                          label: Text(user),
+                          deleteIcon: Icon(Icons.close, color: Colors.redAccent),
+                          onDeleted: () => _removeUser(user),
+                        ))
+                            .toList(),
                       ),
                     ),
                   ),
@@ -178,9 +219,26 @@ class _SpinTheBottleScreenState extends State<SpinTheBottleScreen>
                   ),
                   child: Text("Spin the Bottle", style: TextStyle(color: Colors.white)),
                 ),
+                SizedBox(height: 16),
+                if (lastWinner != null)
+                  Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 4,
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Text("Last Winner:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          SizedBox(height: 8),
+                          Text(lastWinner!, style: TextStyle(fontSize: 20, color: Colors.deepPurple, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
+          GlobalTimerOverlay(),
         ],
       ),
     );

@@ -1,11 +1,11 @@
-// File: camera_screen.dart
 
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/timer_provider.dart';
+import '../UI/global_timer_overlay.dart';
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -15,6 +15,8 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen> {
   CameraController? _cameraController;
   bool _isProcessingBatch = false;
+  bool _isLoading = false;
+  String _errorMessage = "";
 
   // Data received from the backend
   String drunkLevel = "Unknown";
@@ -22,19 +24,36 @@ class _CameraScreenState extends State<CameraScreen> {
   double hrv = 0.0;
   double eyeRedness = 0.0;
 
-  // Loading and error states
-  bool _isLoading = false;
-  String _errorMessage = "";
-
-  List<CameraImage> frameBuffer = []; // Buffer to store frames for a batch
+  List<CameraImage> frameBuffer = [];
 
   @override
   void initState() {
     super.initState();
+    _loadSavedData();
     _initializeCamera();
   }
 
-  /// Initialize the camera and start frame batching
+  /// Load saved results from SharedPreferences
+  Future<void> _loadSavedData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      drunkLevel = prefs.getString('drunkLevel') ?? "Unknown";
+      heartRate = prefs.getDouble('heartRate') ?? 0.0;
+      hrv = prefs.getDouble('hrv') ?? 0.0;
+      eyeRedness = prefs.getDouble('eyeRedness') ?? 0.0;
+    });
+  }
+
+  /// Save the latest results to SharedPreferences
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('drunkLevel', drunkLevel);
+    await prefs.setDouble('heartRate', heartRate);
+    await prefs.setDouble('hrv', hrv);
+    await prefs.setDouble('eyeRedness', eyeRedness);
+  }
+
+  /// Initialize the camera
   Future<void> _initializeCamera() async {
     try {
       final cameras = await availableCameras();
@@ -44,7 +63,6 @@ class _CameraScreenState extends State<CameraScreen> {
       );
 
       _cameraController = CameraController(frontCamera, ResolutionPreset.medium);
-
       await _cameraController!.initialize();
       _startFrameBatching();
       setState(() {});
@@ -71,20 +89,14 @@ class _CameraScreenState extends State<CameraScreen> {
 
         ApiService.sendFrameBatchToBackend(frameBuffer).then((response) {
           setState(() {
-            if (response['drunk_level'] != null) {
-              drunkLevel = response['drunk_level'];
-            }
-            if (response['heart_rate'] != null) {
-              heartRate = (response['heart_rate']).toDouble();
-            }
-            if (response['hrv'] != null) {
-              hrv = (response['hrv']).toDouble();
-            }
-            if (response['eye_redness'] != null) {
-              eyeRedness = (response['eye_redness']).toDouble();
-            }
+            drunkLevel = response['drunk_level'] ?? drunkLevel;
+            heartRate = (response['heart_rate'] ?? heartRate).toDouble();
+            hrv = (response['hrv'] ?? hrv).toDouble();
+            eyeRedness = (response['eye_redness'] ?? eyeRedness).toDouble();
             _isLoading = false;
           });
+
+          _saveData(); // Save results
           frameBuffer.clear();
           _isProcessingBatch = false;
         }).catchError((error) {
@@ -101,17 +113,13 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final timerProvider = Provider.of<TimerProvider>(context);
     bool showWarning = _isDrunkLevelDangerous();
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
           "Alco-Camera",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         centerTitle: true,
         backgroundColor: Colors.deepPurple,
@@ -122,103 +130,95 @@ class _CameraScreenState extends State<CameraScreen> {
           // Camera Preview
           if (_cameraController != null && _cameraController!.value.isInitialized)
             CameraPreview(_cameraController!),
+
           // Error Message Overlay
           if (_errorMessage.isNotEmpty)
-            Center(
-              child: Container(
-                padding: EdgeInsets.all(16),
-                margin: EdgeInsets.symmetric(horizontal: 20),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _errorMessage,
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
+            _buildErrorOverlay(),
+
           // Loading Indicator Overlay
           if (_isLoading)
-            Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(
-                      valueColor:
-                      AlwaysStoppedAnimation<Color>(Colors.deepPurpleAccent),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      "Processing...",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildLoadingOverlay(),
+
           // Data Overlay
-          Positioned(
-            bottom: 20,
-            left: 20,
-            right: 20,
-            child: Card(
-              color: Colors.white.withOpacity(0.85),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              elevation: 6,
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    _buildDataRow("Drunkenness Level", drunkLevel),
-                    SizedBox(height: 8),
-                    _buildDataRow("Heart Rate", "${heartRate.toStringAsFixed(1)} BPM"),
-                    SizedBox(height: 8),
-                    _buildDataRow("HRV", "${hrv.toStringAsFixed(1)} ms"),
-                    SizedBox(height: 8),
-                    _buildDataRow("Eye Redness", "${eyeRedness.toStringAsFixed(1)}"),
-                    if (showWarning) ...[
-                      SizedBox(height: 12),
-                      Container(
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.red[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.warning, color: Colors.redAccent),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                "Warning: This level of intoxication is extremely dangerous!",
-                                style: TextStyle(
-                                  color: Colors.red[800],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
+          _buildDataOverlay(showWarning),
+
+          // Global Timer Overlay (ADDED)
+          GlobalTimerOverlay(),
         ],
+      ),
+    );
+  }
+
+  /// Build an error message overlay
+  Widget _buildErrorOverlay() {
+    return Center(
+      child: Container(
+        padding: EdgeInsets.all(16),
+        margin: EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.redAccent.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          _errorMessage,
+          style: TextStyle(color: Colors.white, fontSize: 16),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  /// Build a loading overlay while processing frames
+  Widget _buildLoadingOverlay() {
+    return Center(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.deepPurpleAccent),
+            ),
+            SizedBox(height: 12),
+            Text(
+              "Processing...",
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build the data overlay displaying results
+  Widget _buildDataOverlay(bool showWarning) {
+    return Positioned(
+      bottom: 20,
+      left: 20,
+      right: 20,
+      child: Card(
+        color: Colors.white.withOpacity(0.85),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 6,
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              _buildDataRow("Drunkenness Level", drunkLevel),
+              SizedBox(height: 8),
+              _buildDataRow("Heart Rate", "${heartRate.toStringAsFixed(1)} BPM"),
+              SizedBox(height: 8),
+              _buildDataRow("HRV", "${hrv.toStringAsFixed(1)} ms"),
+              SizedBox(height: 8),
+              _buildDataRow("Eye Redness", "${eyeRedness.toStringAsFixed(1)}"),
+              if (showWarning) _buildWarningMessage(),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -230,21 +230,37 @@ class _CameraScreenState extends State<CameraScreen> {
         Expanded(
           child: Text(
             "$title:",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.deepPurple,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.deepPurple),
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.black87,
-          ),
-        ),
+        Text(value, style: TextStyle(fontSize: 16, color: Colors.black87)),
       ],
+    );
+  }
+
+  /// Display warning message if intoxication level is too high
+  Widget _buildWarningMessage() {
+    return Padding(
+      padding: EdgeInsets.only(top: 12),
+      child: Container(
+        padding: EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.red[100],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                "Warning: High intoxication level detected!",
+                style: TextStyle(color: Colors.red[800], fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -252,8 +268,7 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _isDrunkLevelDangerous() {
     if (drunkLevel == "Unknown") return false;
     double? level = double.tryParse(drunkLevel);
-    if (level == null) return false;
-    return level > 0.30; // Adjust threshold as needed
+    return level != null && level > 0.30;
   }
 
   @override
