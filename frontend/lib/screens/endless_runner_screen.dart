@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 
-import '../games/endless_runner/beer_runner/main.dart';
+// import '../games/endless_runner/beer_runner/main.dart';
 
 
 class EndlessRunnerScreen extends StatelessWidget {
@@ -10,7 +10,7 @@ class EndlessRunnerScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          MyGame(),
+          // MyGame(),
           Positioned(
             top: 40,
             left: 16,
